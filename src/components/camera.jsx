@@ -24,11 +24,9 @@ export function Camera(props) {
     };
 
     return (
-        <div className={"mx-camerastream " + props.classNames} style={{ width: "100%", height: "100%" }}>
+        <div className={"mx-camerastream " + props.classNames} style={{ width: props.width, height: props.height }}>
             <Webcam
                 ref={webcamRef}
-                height={props.height}
-                width={props.width}
                 screenshotFormat="image/jpeg"
                 audio={props.audioEnabled}
                 videoConstraints={videoConstraints}
