@@ -2,8 +2,8 @@
   "name": "camerastream",
   "widgetName": "CameraStream",
   "version": "1.0.0",
-  "description": "My widget description",
-  "copyright": "Kobeon B.V. 2024",
+  "description": "",
+  "copyright": "Kobeon B.V. 2025",
   "author": "Hunter Koppen",
   "engines": {
     "node": ">=16"

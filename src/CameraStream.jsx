@@ -16,15 +16,18 @@ export function CameraStream(props) {
 
     return (
         <Camera
-            content={props.content}
-            classNames={props.class}
+            contentTop={props.contentTop}
+            contentMiddle={props.contentMiddle}
+            contentBottom={props.contentBottom}
+            loadingContent={props.loadingContent}
+            classNames={props.classNames}
             width={props.width.value}
             height={props.height.value}
-            alignment={props.alignment}
             takeScreenshot={props.takeScreenshot}
             onScreenshot={handleScreenshotTaken}
             screenshotBase64String={props.screenshotBase64String}
             audioEnabled={props.audioEnabled?.value ?? true}
+            facingMode={props.facingMode?.value ?? "environment"}
         />
     );
 }

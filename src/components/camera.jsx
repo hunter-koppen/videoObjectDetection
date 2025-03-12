@@ -1,9 +1,9 @@
-import { createElement, useRef, useEffect } from "react";
+import { createElement, useRef, useEffect, useState } from "react";
 import Webcam from "react-webcam";
 
 export function Camera(props) {
-    const alignment = props.alignment || "top";
     const webcamRef = useRef(null);
+    const [cameraReady, setCameraReady] = useState(false);
 
     useEffect(() => {
         if (props.takeScreenshot.value === true && webcamRef.current) {
@@ -15,10 +15,41 @@ export function Camera(props) {
         }
     }, [props.takeScreenshot, props.onScreenshot]);
 
+    const videoConstraints = {
+        facingMode: props.facingMode || "environment"
+    };
+
+    const handleUserMedia = () => {
+        setCameraReady(true);
+    };
+
     return (
         <div className={"mx-camerastream " + props.classNames}>
-            <Webcam ref={webcamRef} height={props.height} width={props.width} screenshotFormat="image/jpeg" audio={props.audioEnabled} />
-            <div className={`camera-content-overlay camera-align-${alignment}`}>{props.content}</div>
+            <Webcam
+                ref={webcamRef}
+                height={props.height}
+                width={props.width}
+                screenshotFormat="image/jpeg"
+                audio={props.audioEnabled}
+                videoConstraints={videoConstraints}
+                onUserMedia={handleUserMedia}
+            />
+
+            {!cameraReady && props.loadingContent && <div className="camera-loading">{props.loadingContent}</div>}
+
+            {cameraReady && (
+                <>
+                    {props.contentTop && (
+                        <div className="camera-content-overlay camera-align-top">{props.contentTop}</div>
+                    )}
+                    {props.contentMiddle && (
+                        <div className="camera-content-overlay camera-align-middle">{props.contentMiddle}</div>
+                    )}
+                    {props.contentBottom && (
+                        <div className="camera-content-overlay camera-align-bottom">{props.contentBottom}</div>
+                    )}
+                </>
+            )}
         </div>
     );
 }
