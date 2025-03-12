@@ -20,7 +20,7 @@ export function CameraStream(props) {
             contentMiddle={props.contentMiddle}
             contentBottom={props.contentBottom}
             loadingContent={props.loadingContent}
-            classNames={props.classNames}
+            classNames={props.class}
             width={props.width.value}
             height={props.height.value}
             takeScreenshot={props.takeScreenshot}

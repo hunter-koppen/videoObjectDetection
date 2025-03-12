@@ -1,4 +1,4 @@
-import { createElement, useRef, useEffect, useState } from "react";
+import { createElement, useRef, useEffect, useState, Fragment } from "react";
 import Webcam from "react-webcam";
 
 export function Camera(props) {
@@ -24,7 +24,7 @@ export function Camera(props) {
     };
 
     return (
-        <div className={"mx-camerastream " + props.classNames}>
+        <div className={"mx-camerastream " + props.classNames} style={{ width: "100%", height: "100%" }}>
             <Webcam
                 ref={webcamRef}
                 height={props.height}
@@ -38,7 +38,7 @@ export function Camera(props) {
             {!cameraReady && props.loadingContent && <div className="camera-loading">{props.loadingContent}</div>}
 
             {cameraReady && (
-                <>
+                <Fragment>
                     {props.contentTop && (
                         <div className="camera-content-overlay camera-align-top">{props.contentTop}</div>
                     )}
@@ -48,7 +48,7 @@ export function Camera(props) {
                     {props.contentBottom && (
                         <div className="camera-content-overlay camera-align-bottom">{props.contentBottom}</div>
                     )}
-                </>
+                </Fragment>
             )}
         </div>
     );
