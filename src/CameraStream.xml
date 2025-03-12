@@ -7,29 +7,55 @@
     <icon/>
     <properties>
         <propertyGroup caption="General">
-            <property key="content" type="widgets" required="false">
-                <caption>Content</caption>
-                <description>Content that is shown on top of the camera stream</description>
-            </property>
-            <property key="alignment" type="enumeration" defaultValue="top">
-                <caption>Content alignment</caption>
-                <description/>
-                <enumerationValues>
-                    <enumerationValue key="top">Top</enumerationValue>
-                    <enumerationValue key="middle">Middle</enumerationValue>
-                    <enumerationValue key="bottom">Bottom</enumerationValue>
-                </enumerationValues>
-            </property>
-            <property key="width" type="expression" defaultValue="'100%'" required="true">
-                <caption>Width</caption>
-                <description/>
-                <returnType type="String" />
-            </property>
-            <property key="height" type="expression" defaultValue="'100%'" required="true">
-                <caption>Height</caption>
-                <description/>
-                <returnType type="String" />
-            </property>
+            <propertyGroup caption="Content">
+                <property key="content" type="widgets" required="false">
+                    <caption>Content</caption>
+                    <description>Content that is shown on top of the camera stream</description>
+                </property>
+                <property key="alignment" type="enumeration" defaultValue="top">
+                    <caption>Content alignment</caption>
+                    <description/>
+                    <enumerationValues>
+                        <enumerationValue key="top">Top</enumerationValue>
+                        <enumerationValue key="middle">Middle</enumerationValue>
+                        <enumerationValue key="bottom">Bottom</enumerationValue>
+                    </enumerationValues>
+                </property>
+            </propertyGroup>
+            <propertyGroup caption="Size">
+                <property key="width" type="expression" defaultValue="'100%'" required="true">
+                    <caption>Width</caption>
+                    <description/>
+                    <returnType type="String" />
+                </property>
+                <property key="height" type="expression" defaultValue="'100%'" required="true">
+                    <caption>Height</caption>
+                    <description/>
+                    <returnType type="String" />
+                </property>
+            </propertyGroup>
+        </propertyGroup>
+        <propertyGroup caption="Screenshot">
+            <propertyGroup caption="Screenshot">
+                <property key="takeScreenshot" type="attribute" required="false">
+                    <caption>Take screenshot</caption>
+                    <description>Toggle boolean to true to take a screenshot</description>
+                    <attributeTypes>
+                        <attributeType name="Boolean"/>
+                    </attributeTypes>
+                </property>
+                <property key="screenshotBase64String" type="attribute" required="false">
+                    <caption>Base64 string</caption>
+                    <description/>
+                    <attributeTypes>
+                        <attributeType name="String"/>
+                    </attributeTypes>
+                </property>
+                <property key="onScreenshotCapture" type="action" required="false">
+                    <caption>On screenshot capture</caption>
+                    <description></description>
+                </property>
+            </propertyGroup>
         </propertyGroup>
     </properties>
 </widget>
