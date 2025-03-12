@@ -1,8 +1,8 @@
 import { createElement } from "react";
 
-import { HelloWorldSample } from "./components/HelloWorldSample";
+import { Camera } from "./components/camera";
 import "./ui/CameraStream.css";
 
-export function CameraStream({ sampleText }) {
-    return <HelloWorldSample sampleText={sampleText} />;
+export function CameraStream(props) {
+    return <Camera sampleText={props.sampleText} classNames={props.class} />;
 }

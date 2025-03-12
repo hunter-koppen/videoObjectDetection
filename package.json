@@ -28,7 +28,8 @@
     "@mendix/pluggable-widgets-tools": "^10.15.0"
   },
   "dependencies": {
-    "classnames": "^2.2.6"
+    "classnames": "^2.2.6",
+    "react-webcam": "^7.2.0"
   },
   "resolutions": {
     "react": "^18.2.0",
