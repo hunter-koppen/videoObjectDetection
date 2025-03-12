@@ -2,6 +2,17 @@
     position: relative;
 }
 
+.mx-camerastream > video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
 .camera-content-overlay {
     position: absolute;
     left: 0;
@@ -11,7 +22,6 @@
     z-index: 1;
 }
 
-/* Alignment variations */
 .camera-align-top {
     top: 0;
     align-items: flex-start;
