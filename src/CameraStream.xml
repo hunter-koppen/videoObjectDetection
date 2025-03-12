@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<widget id="kobeon.camerastream.CameraStream" pluginWidget="true" needsEntityContext="true" offlineCapable="true"
-        supportedPlatform="Web"
-        xmlns="http://www.mendix.com/widget/1.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.mendix.com/widget/1.0/ ../node_modules/mendix/custom_widget.xsd">
+<widget id="kobeon.camerastream.CameraStream" pluginWidget="true" needsEntityContext="true" offlineCapable="true" supportedPlatform="Web"
+    xmlns="http://www.mendix.com/widget/1.0/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mendix.com/widget/1.0/ ../node_modules/mendix/custom_widget.xsd">
     <name>Camera Stream</name>
-    <description>My widget description</description>
+    <description/>
     <icon/>
     <properties>
         <propertyGroup caption="General">
-            <property key="sampleText" type="string" required="false">
-                <caption>Default value</caption>
-                <description>Sample text input</description>
+            <property key="content" type="widgets" required="false">
+                <caption>Content</caption>
+                <description>Content that is shown on top of the camera stream</description>
+            </property>
+            <property key="alignment" type="enumeration" defaultValue="top">
+                <caption>Content alignment</caption>
+                <description/>
+                <enumerationValues>
+                    <enumerationValue key="top">Top</enumerationValue>
+                    <enumerationValue key="middle">Middle</enumerationValue>
+                    <enumerationValue key="bottom">Bottom</enumerationValue>
+                </enumerationValues>
+            </property>
+            <property key="width" type="expression" defaultValue="'100%'" required="true">
+                <caption>Width</caption>
+                <description/>
+                <returnType type="String" />
+            </property>
+            <property key="height" type="expression" defaultValue="'100%'" required="true">
+                <caption>Height</caption>
+                <description/>
+                <returnType type="String" />
             </property>
         </propertyGroup>
     </properties>

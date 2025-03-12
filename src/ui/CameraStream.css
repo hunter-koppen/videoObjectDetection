@@ -1,6 +1,31 @@
-/*
-Place your custom CSS here
-*/
-.widget-hello-world {
+.mx-camerastream {
+    position: relative;
+}
 
+.camera-content-overlay {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 1;
+}
+
+/* Alignment variations */
+.camera-align-top {
+    top: 0;
+    align-items: flex-start;
+    padding-top: 10px;
+}
+
+.camera-align-middle {
+    top: 0;
+    height: 100%;
+    align-items: center;
+}
+
+.camera-align-bottom {
+    bottom: 0;
+    align-items: flex-end;
+    padding-bottom: 10px;
 }
