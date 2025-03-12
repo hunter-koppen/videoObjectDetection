@@ -17,7 +17,7 @@ export function Camera(props) {
 
     return (
         <div className={"mx-camerastream " + props.classNames}>
-            <Webcam ref={webcamRef} height={props.height} width={props.width} screenshotFormat="image/jpeg" />
+            <Webcam ref={webcamRef} height={props.height} width={props.width} screenshotFormat="image/jpeg" audio={props.audioEnabled} />
             <div className={`camera-content-overlay camera-align-${alignment}`}>{props.content}</div>
         </div>
     );

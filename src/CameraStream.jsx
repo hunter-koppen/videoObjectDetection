@@ -24,6 +24,7 @@ export function CameraStream(props) {
             takeScreenshot={props.takeScreenshot}
             onScreenshot={handleScreenshotTaken}
             screenshotBase64String={props.screenshotBase64String}
+            audioEnabled={props.audioEnabled?.value ?? true}
         />
     );
 }

@@ -34,6 +34,15 @@
                     <returnType type="String" />
                 </property>
             </propertyGroup>
+            <propertyGroup caption="Additional settings">
+                <property key="audioEnabled" type="attribute" required="false">
+                    <caption>Audio enabled</caption>
+                    <description/>
+                    <attributeTypes>
+                        <attributeType name="Boolean"/>
+                    </attributeTypes>
+                </property>
+            </propertyGroup>
         </propertyGroup>
         <propertyGroup caption="Screenshot">
             <propertyGroup caption="Screenshot">
