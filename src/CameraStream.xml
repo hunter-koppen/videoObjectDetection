@@ -72,5 +72,33 @@
                 </property>
             </propertyGroup>
         </propertyGroup>
+        <propertyGroup caption="Recording">
+            <propertyGroup caption="Data">
+                <property key="startRecording" type="attribute" required="false">
+                    <caption>Start recording</caption>
+                    <description>Toggle boolean to true to start the recording, when set to false the file will be saved to the Base64 string</description>
+                    <attributeTypes>
+                        <attributeType name="Boolean"/>
+                    </attributeTypes>
+                </property>
+                <property key="recordingBase64String" type="attribute" required="false">
+                    <caption>Base64 string</caption>
+                    <description/>
+                    <attributeTypes>
+                        <attributeType name="String"/>
+                    </attributeTypes>
+                </property>
+                <property key="onRecordingComplete" type="action" required="false">
+                    <caption>On recording complete</caption>
+                    <description/>
+                </property>
+            </propertyGroup>
+            <propertyGroup caption="Settings">
+                <property key="showRecordingIndicator" type="boolean" defaultValue="true">
+                    <caption>Show recording indicator</caption>
+                    <description/>
+                </property>
+            </propertyGroup>
+        </propertyGroup>
     </properties>
 </widget>

@@ -3,17 +3,35 @@ import Webcam from "react-webcam";
 
 export function Camera(props) {
     const webcamRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
     const [cameraReady, setCameraReady] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordedChunks, setRecordedChunks] = useState([]);
+    const [prevStartRecording, setPrevStartRecording] = useState(false);
 
     useEffect(() => {
         if (props.takeScreenshot.value === true && webcamRef.current) {
             const screenshot = webcamRef.current.getScreenshot();
             if (props.onScreenshot && screenshot) {
                 props.takeScreenshot.setValue(false);
-                props.onScreenshot(screenshot);
+                const base64String = screenshot.split(",")[1]; // Remove the data URL prefix
+                props.onScreenshot(base64String);
             }
         }
     }, [props.takeScreenshot, props.onScreenshot]);
+
+    useEffect(() => {
+        if (!props.startRecording) {
+            return;
+        }
+
+        if (props.startRecording.value === true && !prevStartRecording) {
+            startRecording();
+        } else if (props.startRecording.value === false && prevStartRecording) {
+            stopRecording();
+        }
+        setPrevStartRecording(props.startRecording.value);
+    }, [props.startRecording?.value]);
 
     const videoConstraints = {
         facingMode: props.facingMode || "environment"
@@ -21,6 +39,43 @@ export function Camera(props) {
 
     const handleUserMedia = () => {
         setCameraReady(true);
+    };
+
+    const startRecording = () => {
+        setRecordedChunks([]);
+        if (webcamRef.current && webcamRef.current.stream) {
+            const mediaRecorder = new MediaRecorder(webcamRef.current.stream);
+            mediaRecorderRef.current = mediaRecorder;
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    setRecordedChunks(prev => {
+                        const newChunks = [...prev, event.data];
+                        // If recording has stopped, process the complete video
+                        if (mediaRecorder.state !== "recording") {
+                            const videoBlob = new Blob(newChunks, { type: "video/webm" });
+                            const reader = new FileReader();
+                            reader.readAsDataURL(videoBlob);
+                            reader.onloadend = () => {
+                                const base64String = reader.result.split(",")[1];
+                                if (props.onRecordingComplete) {
+                                    props.onRecordingComplete(base64String);
+                                }
+                            };
+                            setIsRecording(false);
+                        }
+                        return newChunks;
+                    });
+                }
+            };
+            mediaRecorder.start();
+            setIsRecording(true);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+        }
     };
 
     return (
@@ -34,6 +89,12 @@ export function Camera(props) {
             />
 
             {!cameraReady && props.loadingContent && <div className="camera-loading">{props.loadingContent}</div>}
+
+            {props.showRecordingIndicator && isRecording && (
+                <div className="camera-recording-indicator">
+                    <span className="recording-dot"></span> Recording
+                </div>
+            )}
 
             {cameraReady && (
                 <Fragment>

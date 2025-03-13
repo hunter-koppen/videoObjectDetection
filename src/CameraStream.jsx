@@ -5,12 +5,20 @@ import "./ui/CameraStream.css";
 
 export function CameraStream(props) {
     const handleScreenshotTaken = base64String => {
-        const cleanBase64 = base64String.replace(/^data:image\/jpeg;base64,/, "");
         if (props.screenshotBase64String) {
-            props.screenshotBase64String.setValue(cleanBase64);
+            props.screenshotBase64String.setValue(base64String);
             if (props.onScreenshotCapture && props.onScreenshotCapture.canExecute) {
                 props.onScreenshotCapture.execute();
             }
+        }
+    };
+
+    const handleRecordingComplete = base64String => {
+        if (props.recordingBase64String) {
+            props.recordingBase64String.setValue(base64String);
+        }
+        if (props.onRecordingComplete && props.onRecordingComplete.canExecute) {
+            props.onRecordingComplete.execute();
         }
     };
 
@@ -26,6 +34,9 @@ export function CameraStream(props) {
             takeScreenshot={props.takeScreenshot}
             onScreenshot={handleScreenshotTaken}
             screenshotBase64String={props.screenshotBase64String}
+            startRecording={props.startRecording}
+            showRecordingIndicator={props.showRecordingIndicator}
+            onRecordingComplete={handleRecordingComplete}
             audioEnabled={props.audioEnabled?.value ?? true}
             facingMode={props.facingMode?.value ?? "environment"}
         />
