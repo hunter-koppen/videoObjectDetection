@@ -1,24 +1,19 @@
 ## CameraStream
-[My widget description]
+A widget that enables easy integration of device camera streams into your Mendix applications.
 
 ## Features
-[feature highlights]
+-   Access device camera streams directly in your Mendix app
+-   Support for both front and back cameras
+-   Record and save video streams
+-   Capture a screenshot of the video stream
 
 ## Usage
-[step by step instructions]
+1. Add the widget to your Mendix page
+2. Configure the camera settings (front/back camera)
+3. Set up the desired dimensions for the stream
+4. (Optional) Configure the capture button and logic for screenshots/recording.
 
-## Demo project
-[link to sandbox]
+Note: Browsers will throw an error if the page is loaded from insecure origin. I.e. Use https.
 
 ## Issues, suggestions and feature requests
-[link to GitHub issues]
-
-## Development and contribution
-
-1. Install NPM package dependencies by using: `npm install`. If you use NPM v7.x.x, which can be checked by executing `npm -v`, execute: `npm install --legacy-peer-deps`.
-1. Run `npm start` to watch for code changes. On every change:
-    - the widget will be bundled;
-    - the bundle will be included in a `dist` folder in the root directory of the project;
-    - the bundle will be included in the `deployment` and `widgets` folder of the Mendix test project.
-
-[specify contribution]
+https://github.com/hunter-koppen/cameraStream/issues
