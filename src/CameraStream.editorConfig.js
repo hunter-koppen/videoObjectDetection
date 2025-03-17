@@ -1,9 +1,6 @@
-import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
+//import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
 
 export function getProperties(values, defaultProperties, target) {
-    if (values.geminiEnabled === false) {
-        hidePropertyIn(defaultProperties, values, "geminiApiKey");
-    }
     return defaultProperties;
 }
 

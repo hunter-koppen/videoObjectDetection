@@ -28,9 +28,6 @@
     "@mendix/pluggable-widgets-tools": "^10.15.0"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
-    "@tensorflow-models/coco-ssd": "^2.2.3",
-    "@tensorflow/tfjs": "^4.22.0",
     "classnames": "^2.2.6",
     "react-webcam": "^7.2.0"
   },
