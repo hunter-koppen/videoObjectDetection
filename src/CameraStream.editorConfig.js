@@ -1,52 +1,9 @@
-/**
- * @typedef Property
- * @type {object}
- * @property {string} key
- * @property {string} caption
- * @property {string} description
- * @property {string[]} objectHeaders
- * @property {ObjectProperties[]} objects
- * @property {Properties[]} properties
- */
+import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
 
-/**
- * @typedef ObjectProperties
- * @type {object}
- * @property {PropertyGroup[]} properties
- * @property {string[]} captions
- */
-
-/**
- * @typedef PropertyGroup
- * @type {object}
- * @property {string} caption
- * @property {PropertyGroup[]} propertyGroups
- * @property {Property[]} properties
- */
-
-/**
- * @typedef Properties
- * @type {PropertyGroup}
- */
-
-/**
- * @typedef Problem
- * @type {object}
- * @property {string} property
- * @property {("error" | "warning" | "deprecation")} severity
- * @property {string} message
- * @property {string} studioMessage
- * @property {string} url
- * @property {string} studioUrl
- */
-
-/**
- * @param {object} values
- * @param {Properties} defaultProperties
- * @param {("web"|"desktop")} target
- * @returns {Properties}
- */
 export function getProperties(values, defaultProperties, target) {
+    if (values.geminiEnabled === false) {
+        hidePropertyIn(defaultProperties, values, "geminiApiKey");
+    }
     return defaultProperties;
 }
 

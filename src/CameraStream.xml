@@ -110,10 +110,21 @@
                 </property>
             </propertyGroup>
         </propertyGroup>
-        <propertyGroup caption="Object detection">
+        <propertyGroup caption="Tensorflow">
             <property key="objectDetectionEnabled" type="boolean" defaultValue="false">
                 <caption>Object detection enabled</caption>
                 <description />
+            </property>
+        </propertyGroup>
+        <propertyGroup caption="Gemini">
+            <property key="geminiEnabled" type="boolean" defaultValue="false">
+                <caption>Gemini enabled</caption>
+                <description />
+            </property>
+            <property key="geminiApiKey" type="expression" defaultValue="" required="true">
+                <caption>Gemini API key</caption>
+                <description />
+                <returnType type="String" />
             </property>
         </propertyGroup>
     </properties>
