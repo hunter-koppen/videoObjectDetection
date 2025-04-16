@@ -18,11 +18,8 @@ export function Camera(props) {
 
         const loadModel = async () => {
             try {
-                // Load model FIRST
                 const loadedModel = await tf.loadGraphModel(props.modelUrl);
                 setModel(loadedModel);
-                // Log backend AFTER successful load
-                console.log("Using TensorFlow.js backend:", tf.getBackend());
                 console.log("Object detection model loaded");
             } catch (err) {
                 console.error("Failed to load model:", err);
@@ -32,7 +29,7 @@ export function Camera(props) {
     }, [objectDetectionEnabled, props.modelUrl]);
 
     useEffect(() => {
-        if (!objectDetectionEnabled) return;
+        if (!objectDetectionEnabled || !model) return;
 
         let animationFrameId;
 
@@ -50,7 +47,7 @@ export function Camera(props) {
                     // Preprocess the video frame
                     const tensor = tf.tidy(() => {
                         const img = tf.browser.fromPixels(video);
-                        // Resize the image to the expected input size (640x640)
+                        // Resize the image to the expected input size (640x640) change this to match the model input size
                         const resized = tf.image.resizeBilinear(img, [640, 640]);
                         const casted = resized.cast("int32"); // Cast after resizing
                         const expanded = casted.expandDims(0);
@@ -60,24 +57,24 @@ export function Camera(props) {
                     // Execute the model - Request ALL output tensors from signature
                     const outputNodeNames = [
                         // Only request the tensors we now know we need
-                        'Identity_1:0', // Boxes (Index 0 in new map)
-                        'Identity_5:0', // Num Detections (Index 1 in new map)
-                        'Identity_4:0', // Scores (Index 2 in new map)
-                        'Identity_3:0'  // Class Specific Scores [1, 100, 2] (Index 3 in new map)
+                        "Identity_1:0", // Boxes (Index 0 in new map)
+                        "Identity_5:0", // Num Detections (Index 1 in new map)
+                        "Identity_4:0", // Scores (Index 2 in new map)
+                        "Identity_3:0" // Class Specific Scores [1, 100, 2] (Index 3 in new map)
                     ];
                     const outputTensors = await model.executeAsync(tensor, outputNodeNames);
                     const [boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw] = outputTensors;
 
                     const numDetections = (await numDetectionsTensor.data())[0];
-                    tf.dispose(numDetectionsTensor); // Dispose num detection tensor
+                    tf.dispose(numDetectionsTensor);
 
                     let newDetections = [];
 
                     if (numDetections > 0) {
                         // --- Manual Tensor Operations and Disposal ---
-                        
+
                         // 1. Get Scores & Dispose Original Raw
-                        const scores = scoresTensorRaw.squeeze(); 
+                        const scores = scoresTensorRaw.squeeze();
                         tf.dispose(scoresTensorRaw);
 
                         // 2. Derive Class IDs & Dispose Original Raw
@@ -92,15 +89,15 @@ export function Camera(props) {
                         tf.dispose([scoreMask, classMask]); // Dispose intermediate masks
 
                         // 4. Apply Mask using booleanMaskAsync
-                        const boxesReshaped = boxesTensorRaw.squeeze(); 
+                        const boxesReshaped = boxesTensorRaw.squeeze();
                         tf.dispose(boxesTensorRaw);
 
                         const finalBoxesTensor = await tf.booleanMaskAsync(boxesReshaped, finalMask);
                         const finalScoresTensor = await tf.booleanMaskAsync(scores, finalMask);
-                        
+
                         // Dispose remaining intermediate tensors
                         tf.dispose([scores, classIds, finalMask, boxesReshaped]);
-                        
+
                         // 5. Await data
                         const finalBoxesData = await finalBoxesTensor.data();
                         const finalScoresData = await finalScoresTensor.data();
@@ -109,8 +106,8 @@ export function Camera(props) {
                         tf.dispose([finalBoxesTensor, finalScoresTensor]);
 
                         // 7. Process filtered data
-                        const labelMap = { 1: "Energiemeter" };
-                        for (let i = 0; i < finalScoresData.length; i++) { 
+                        const labelMap = { 1: "Energiemeter" }; // change this to match the model output
+                        for (let i = 0; i < finalScoresData.length; i++) {
                             const score = finalScoresData[i];
                             const className = labelMap[1];
                             const [ymin, xmin, ymax, xmax] = finalBoxesData.slice(i * 4, (i + 1) * 4);
@@ -125,25 +122,25 @@ export function Camera(props) {
                             });
                         }
                     } else {
-                         // Dispose raw tensors if no detections
-                         tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw]);
+                        // Dispose raw tensors if no detections
+                        tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw]);
                     }
 
                     // Dispose input tensor
                     tf.dispose(tensor);
-                    // -------------------------------------------
-                    
+
                     setDetections(newDetections);
 
                     animationFrameId = requestAnimationFrame(runDetection);
                 } catch (err) {
                     console.error("Error in runDetection:", err);
                     // Add a delay before retrying after an error
-                    setTimeout(() => { 
-                        if (isDetecting && model) { // Check again if still should be running
-                           animationFrameId = requestAnimationFrame(runDetection);
-                        } 
-                    }, 1000); 
+                    setTimeout(() => {
+                        if (isDetecting && model) {
+                            // Check again if still should be running
+                            animationFrameId = requestAnimationFrame(runDetection);
+                        }
+                    }, 1000);
                 }
             } else {
                 // If condition is false, schedule the next check if still detecting
@@ -155,33 +152,33 @@ export function Camera(props) {
 
         // Setup detection loop if model is ready and detecting is enabled
         // This initial call is important
-        if (isDetecting) { 
-             animationFrameId = requestAnimationFrame(runDetection);
+        if (isDetecting) {
+            animationFrameId = requestAnimationFrame(runDetection);
         }
 
         return () => {
-            if (animationFrameId) { 
+            if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
         };
     }, [model, isDetecting]); // Rerun effect if model or isDetecting changes
 
-    // Restore the original handleUserMedia function to set cameraReady and isDetecting
     const handleUserMedia = () => {
         setTimeout(() => {
             setCameraReady(true);
             if (objectDetectionEnabled) {
-                setIsDetecting(true); // Make sure this is set!
+                setIsDetecting(true);
             }
-        }, 1000); // Keep delay to allow video stream to stabilize
+        }, 1000);
     };
 
-    // Restore the original renderDetections function
     const renderDetections = () => {
         if (!objectDetectionEnabled || !detections.length) return null;
 
         return (
-            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+            <div
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+            >
                 {detections.map((detection, index) => (
                     <div
                         key={index}
@@ -212,8 +209,7 @@ export function Camera(props) {
             </div>
         );
     };
-    
-    // Restore original recording functions and effects
+
     const startRecording = () => {
         if (webcamRef.current && webcamRef.current.stream) {
             const chunks = [];
@@ -274,38 +270,102 @@ export function Camera(props) {
         facingMode: props.facingMode || "environment"
     };
 
-    // Restore the main return statement with Webcam and UI elements
     return (
-        <div className={"mx-camerastream " + props.classNames} style={{ position: "relative", width: props.width, height: props.height }}>
+        <div
+            className={"mx-camerastream " + props.classNames}
+            style={{ position: "relative", width: props.width, height: props.height }}
+        >
             <Webcam
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 audio={props.audioEnabled}
                 videoConstraints={videoConstraints}
-                onUserMedia={handleUserMedia} // Make sure this callback is attached
-                style={{ width: "100%", height: "100%", objectFit: "cover" }} // Ensure webcam fills the div
+                onUserMedia={handleUserMedia}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
 
-            {renderDetections()} // Render the detection boxes
+            {renderDetections()}
 
-            {!cameraReady && props.loadingContent && <div className="camera-loading" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>{props.loadingContent}</div>}
+            {!cameraReady && props.loadingContent && (
+                <div
+                    className="camera-loading"
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0,0,0,0.5)"
+                    }}
+                >
+                    {props.loadingContent}
+                </div>
+            )}
 
             {props.showRecordingIndicator && isRecording && (
-                <div className="camera-recording-indicator" style={{ position: "absolute", top: "10px", left: "10px", background: "rgba(255, 0, 0, 0.7)", color: "white", padding: "5px 10px", borderRadius: "5px", display: "flex", alignItems: "center" }}>
-                    <span className="recording-dot" style={{ height: "10px", width: "10px", backgroundColor: "red", borderRadius: "50%", display: "inline-block", marginRight: "5px" }}></span> Recording
+                <div
+                    className="camera-recording-indicator"
+                    style={{
+                        position: "absolute",
+                        top: "10px",
+                        left: "10px",
+                        background: "rgba(255, 0, 0, 0.7)",
+                        color: "white",
+                        padding: "5px 10px",
+                        borderRadius: "5px",
+                        display: "flex",
+                        alignItems: "center"
+                    }}
+                >
+                    <span
+                        className="recording-dot"
+                        style={{
+                            height: "10px",
+                            width: "10px",
+                            backgroundColor: "red",
+                            borderRadius: "50%",
+                            display: "inline-block",
+                            marginRight: "5px"
+                        }}
+                    ></span>{" "}
+                    Recording
                 </div>
             )}
 
             {cameraReady && (
                 <Fragment>
                     {props.contentTop && (
-                        <div className="camera-content-overlay camera-align-top" style={{ position: "absolute", top: 0, left: 0, width: "100%", pointerEvents: "none" }}>{props.contentTop}</div>
+                        <div
+                            className="camera-content-overlay camera-align-top"
+                            style={{ position: "absolute", top: 0, left: 0, width: "100%", pointerEvents: "none" }}
+                        >
+                            {props.contentTop}
+                        </div>
                     )}
                     {props.contentMiddle && (
-                        <div className="camera-content-overlay camera-align-middle" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none" }}>{props.contentMiddle}</div>
+                        <div
+                            className="camera-content-overlay camera-align-middle"
+                            style={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                pointerEvents: "none"
+                            }}
+                        >
+                            {props.contentMiddle}
+                        </div>
                     )}
                     {props.contentBottom && (
-                        <div className="camera-content-overlay camera-align-bottom" style={{ position: "absolute", bottom: 0, left: 0, width: "100%", pointerEvents: "none" }}>{props.contentBottom}</div>
+                        <div
+                            className="camera-content-overlay camera-align-bottom"
+                            style={{ position: "absolute", bottom: 0, left: 0, width: "100%", pointerEvents: "none" }}
+                        >
+                            {props.contentBottom}
+                        </div>
                     )}
                 </Fragment>
             )}
