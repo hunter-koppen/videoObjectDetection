@@ -1,15 +1,112 @@
 import { createElement, useRef, useEffect, useState, Fragment } from "react";
 import Webcam from "react-webcam";
+import * as tf from "@tensorflow/tfjs";
 
 export function Camera(props) {
     const webcamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
+    const [model, setModel] = useState(null);
+    const [detections, setDetections] = useState([]);
+    const [isDetecting, setIsDetecting] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
+    const objectDetectionEnabled = props.objectDetectionEnabled === true;
+
+    useEffect(() => {
+        if (!objectDetectionEnabled) return;
+
+        const loadModel = async () => {
+            try {
+                const loadedModel = await tf.loadGraphModel(props.modelUrl);
+                setModel(loadedModel);
+                console.log("Object detection model loaded");
+            } catch (err) {
+                console.error("Failed to load model:", err);
+            }
+        };
+        loadModel();
+    }, [objectDetectionEnabled]);
+
+    useEffect(() => {
+        if (!objectDetectionEnabled) return;
+
+        let animationFrameId;
+
+        const runDetection = async () => {
+            if (model && webcamRef.current && webcamRef.current.video && isDetecting) {
+                const video = webcamRef.current.video;
+                if (video.readyState !== 4 || !video.videoWidth || !video.videoHeight) {
+                    animationFrameId = requestAnimationFrame(runDetection);
+                    return;
+                }
+                try {
+                    const predictions = await model.detect(video);
+                    setDetections(predictions);
+                    animationFrameId = requestAnimationFrame(runDetection);
+                } catch (error) {
+                    console.error("Detection error:", error);
+                    setTimeout(() => {
+                        animationFrameId = requestAnimationFrame(runDetection);
+                    }, 1000);
+                }
+            }
+        };
+
+        if (isDetecting) {
+            runDetection();
+        }
+
+        return () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
+    }, [model, isDetecting, objectDetectionEnabled]);
+
+    const renderDetections = () => {
+        if (!objectDetectionEnabled || !detections.length) return null;
+
+        return (
+            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+                {detections.map((detection, index) => (
+                    <div
+                        key={index}
+                        style={{
+                            position: "absolute",
+                            border: "2px solid #00ff00",
+                            backgroundColor: "rgba(0, 255, 0, 0.2)",
+                            left: `${detection.bbox[0]}px`,
+                            top: `${detection.bbox[1]}px`,
+                            width: `${detection.bbox[2]}px`,
+                            height: `${detection.bbox[3]}px`
+                        }}
+                    >
+                        <span
+                            style={{
+                                position: "absolute",
+                                top: "-1.5em",
+                                backgroundColor: "#00ff00",
+                                padding: "2px 6px",
+                                color: "#fff",
+                                fontSize: "12px"
+                            }}
+                        >
+                            {detection.class} ({Math.round(detection.score * 100)}%)
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     const handleUserMedia = () => {
-        setCameraReady(true);
+        setTimeout(() => {
+            setCameraReady(true);
+            if (objectDetectionEnabled) {
+                setIsDetecting(true);
+            }
+        }, 1000);
     };
 
     const startRecording = () => {
@@ -83,6 +180,8 @@ export function Camera(props) {
                 videoConstraints={videoConstraints}
                 onUserMedia={handleUserMedia}
             />
+
+            {renderDetections()}
 
             {!cameraReady && props.loadingContent && <div className="camera-loading">{props.loadingContent}</div>}
 

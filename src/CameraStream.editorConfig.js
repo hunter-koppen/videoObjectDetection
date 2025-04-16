@@ -1,6 +1,9 @@
-//import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
+import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
 
 export function getProperties(values, defaultProperties, target) {
+    if (values.objectDetectionEnabled === false) {
+        hidePropertyIn(defaultProperties, values, "modelUrl");
+    }
     return defaultProperties;
 }
 

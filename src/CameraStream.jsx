@@ -39,6 +39,8 @@ export function CameraStream(props) {
             onRecordingComplete={handleRecordingComplete}
             audioEnabled={props.audioEnabled?.value ?? true}
             facingMode={props.facingMode?.value ?? "environment"}
+            objectDetectionEnabled={props.objectDetectionEnabled?.value ?? false}
+            modelUrl={props.modelUrl?.value ?? null}
         />
     );
 }

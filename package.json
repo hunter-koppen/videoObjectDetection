@@ -28,6 +28,7 @@
     "@mendix/pluggable-widgets-tools": "^10.15.0"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "classnames": "^2.2.6",
     "react-webcam": "^7.2.0"
   },

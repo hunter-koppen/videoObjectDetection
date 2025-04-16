@@ -100,5 +100,16 @@
                 </property>
             </propertyGroup>
         </propertyGroup>
+         <propertyGroup caption="Object detection">
+            <property key="objectDetectionEnabled" type="boolean" defaultValue="false">
+                <caption>Object detection enabled</caption>
+                <description />
+            </property>
+            <property key="modelUrl" type="expression" required="true">
+                <caption>Model URL</caption>
+                <description>Model URL for object detection</description>
+                <returnType type="String" />
+            </property>
+        </propertyGroup>
     </properties>
 </widget>
