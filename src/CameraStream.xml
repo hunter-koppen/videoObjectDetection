@@ -110,6 +110,21 @@
                 <description>Model URL for object detection</description>
                 <returnType type="String" />
             </property>
+            <property key="labelMapString" type="expression" defaultValue="'{}'" required="false">
+                <caption>Label Map JSON</caption>
+                <description>Example: '{"1": "Energiemeter", "2": "Person"}'</description>
+                <returnType type="String" />
+            </property>
+            <property key="filterClassIdsString" type="expression" defaultValue="''" required="false">
+                <caption>Filter Class IDs</caption>
+                <description>Comma-separated string of class IDs to detect. If empty, all classes passing the score threshold will be shown. Example: '1,2'</description>
+                <returnType type="String" />
+            </property>
+            <property key="scoreThreshold" type="expression" defaultValue="0.5" required="false">
+                <caption>Score Threshold</caption>
+                <description>Minimum confidence score (0.0 to 1.0) for a detection to be considered valid. Default: 0.5</description>
+                <returnType type="Decimal" />
+            </property>
         </propertyGroup>
     </properties>
 </widget>

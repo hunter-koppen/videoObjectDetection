@@ -12,6 +12,8 @@ export function Camera(props) {
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
     const objectDetectionEnabled = props.objectDetectionEnabled === true;
+    const [labelMap, setLabelMap] = useState({});
+    const [filterIds, setFilterIds] = useState([]);
 
     useEffect(() => {
         if (!objectDetectionEnabled || !props.modelUrl) return;
@@ -27,6 +29,33 @@ export function Camera(props) {
         };
         loadModel();
     }, [objectDetectionEnabled, props.modelUrl]);
+
+    useEffect(() => {
+        if (!objectDetectionEnabled) return;
+
+        // Parse label map
+        try {
+            const parsedMap = JSON.parse(props.labelMapString || "{}");
+            setLabelMap(parsedMap);
+        } catch (err) {
+            console.error("Failed to parse labelMapString:", err);
+            setLabelMap({}); // Default to empty map on error
+        }
+
+        // Parse filter IDs
+        try {
+            const ids = props.filterClassIdsString
+                ? props.filterClassIdsString
+                      .split(",")
+                      .map(id => parseInt(id.trim(), 10))
+                      .filter(id => !isNaN(id))
+                : [];
+            setFilterIds(ids);
+        } catch (err) {
+            console.error("Failed to parse filterClassIdsString:", err);
+            setFilterIds([]); // Default to empty list on error
+        }
+    }, [objectDetectionEnabled, props.labelMapString, props.filterClassIdsString]);
 
     useEffect(() => {
         if (!objectDetectionEnabled || !model) return;
@@ -84,32 +113,48 @@ export function Camera(props) {
                         // 3. Create Masks
                         const scoreThreshold = 0.5;
                         const scoreMask = tf.greaterEqual(scores, scoreThreshold);
-                        const classMask = tf.equal(classIds, 1);
+
+                        // Create class mask based on filterIds
+                        let classMask;
+                        if (filterIds.length === 0) {
+                            // If no filter IDs provided, allow all classes that pass the score threshold.
+                            classMask = tf.fill(classIds.shape, true, "bool");
+                        } else {
+                            // Compare each detected classId with the allowed filterIds
+                            const filterIdsTensor = tf.tensor1d(filterIds, "int32");
+                            const comparison = tf.equal(classIds.expandDims(-1), filterIdsTensor.expandDims(0));
+                            classMask = tf.any(comparison, -1); // Check if the classId matches *any* of the filterIds
+                            tf.dispose([filterIdsTensor, comparison]); // Dispose intermediate tensors
+                        }
+
                         const finalMask = tf.logicalAnd(scoreMask, classMask);
                         tf.dispose([scoreMask, classMask]); // Dispose intermediate masks
 
                         // 4. Apply Mask using booleanMaskAsync
                         const boxesReshaped = boxesTensorRaw.squeeze();
-                        tf.dispose(boxesTensorRaw);
+                        tf.dispose(boxesTensorRaw); // Dispose original raw boxes tensor
 
+                        // Apply mask to boxes, scores, and classIds
                         const finalBoxesTensor = await tf.booleanMaskAsync(boxesReshaped, finalMask);
                         const finalScoresTensor = await tf.booleanMaskAsync(scores, finalMask);
+                        const finalClassIdsTensor = await tf.booleanMaskAsync(classIds, finalMask); // Filter classIds as well
 
-                        // Dispose remaining intermediate tensors
+                        // Dispose remaining intermediate tensors no longer needed
                         tf.dispose([scores, classIds, finalMask, boxesReshaped]);
 
-                        // 5. Await data
+                        // 5. Await data from filtered tensors
                         const finalBoxesData = await finalBoxesTensor.data();
                         const finalScoresData = await finalScoresTensor.data();
+                        const finalClassIdsData = await finalClassIdsTensor.data(); // Get filtered class IDs
 
                         // 6. Dispose final tensors
-                        tf.dispose([finalBoxesTensor, finalScoresTensor]);
+                        tf.dispose([finalBoxesTensor, finalScoresTensor, finalClassIdsTensor]);
 
                         // 7. Process filtered data
-                        const labelMap = { 1: "Energiemeter" }; // change this to match the model output
                         for (let i = 0; i < finalScoresData.length; i++) {
                             const score = finalScoresData[i];
-                            const className = labelMap[1];
+                            const classId = finalClassIdsData[i]; // Use the filtered class ID
+                            const className = labelMap[classId] || `Class ${classId}`; // Get name from parsed map, provide fallback
                             const [ymin, xmin, ymax, xmax] = finalBoxesData.slice(i * 4, (i + 1) * 4);
                             const bboxLeft = xmin * videoWidth;
                             const bboxTop = ymin * videoHeight;
@@ -161,7 +206,7 @@ export function Camera(props) {
                 cancelAnimationFrame(animationFrameId);
             }
         };
-    }, [model, isDetecting]); // Rerun effect if model or isDetecting changes
+    }, [model, isDetecting, filterIds, labelMap]); // Rerun effect if model, isDetecting, filterIds, or labelMap changes
 
     const handleUserMedia = () => {
         setTimeout(() => {

@@ -41,6 +41,9 @@ export function CameraStream(props) {
             facingMode={props.facingMode?.value ?? "environment"}
             objectDetectionEnabled={props.objectDetectionEnabled ?? false}
             modelUrl={props.modelUrl?.value ?? null}
+            labelMapString={props.labelMapString?.value ?? '{}'}
+            filterClassIdsString={props.filterClassIdsString?.value ?? ''}
+            scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
         />
     );
 }
