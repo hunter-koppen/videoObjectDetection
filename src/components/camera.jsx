@@ -14,7 +14,7 @@ export function Camera(props) {
     const objectDetectionEnabled = props.objectDetectionEnabled === true;
 
     useEffect(() => {
-        if (!objectDetectionEnabled) return;
+        if (!objectDetectionEnabled || !props.modelUrl) return;
 
         const loadModel = async () => {
             try {
@@ -26,7 +26,7 @@ export function Camera(props) {
             }
         };
         loadModel();
-    }, [objectDetectionEnabled]);
+    }, [objectDetectionEnabled, props.modelUrl]);
 
     useEffect(() => {
         if (!objectDetectionEnabled) return;
