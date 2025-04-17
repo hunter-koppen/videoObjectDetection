@@ -22,6 +22,7 @@ export function Camera(props) {
             try {
                 const loadedModel = await tf.loadGraphModel(props.modelUrl);
                 setModel(loadedModel);
+                console.log("Using TF backend:", tf.getBackend());
                 console.log("Object detection model loaded");
             } catch (err) {
                 console.error("Failed to load model:", err);
@@ -61,8 +62,24 @@ export function Camera(props) {
         if (!objectDetectionEnabled || !model) return;
 
         let animationFrameId;
+        // --- Frame Skipping ---
+        let frameCount = 0;
+        const processEveryNFrames = 3; // Adjust this value (e.g., 2, 3) to change detection frequency
+        // --- End Frame Skipping ---
 
         const runDetection = async () => {
+            // --- Frame Skipping Check ---
+            frameCount++;
+            if (frameCount % processEveryNFrames !== 0) {
+                // Skip this frame, but request the next one
+                if (isDetecting) {
+                    // Check if still detecting before requesting next frame
+                    animationFrameId = requestAnimationFrame(runDetection);
+                }
+                return;
+            }
+            // --- End Frame Skipping Check ---
+
             if (model && webcamRef.current && webcamRef.current.video && isDetecting) {
                 const video = webcamRef.current.video;
                 if (video.readyState !== 4 || !video.videoWidth || !video.videoHeight) {
@@ -77,7 +94,7 @@ export function Camera(props) {
                     const tensor = tf.tidy(() => {
                         const img = tf.browser.fromPixels(video);
                         // Resize the image to the expected input size (640x640) change this to match the model input size
-                        const resized = tf.image.resizeBilinear(img, [640, 640]);
+                        const resized = tf.image.resizeBilinear(img, [320, 320]);
                         const casted = resized.cast("int32"); // Cast after resizing
                         const expanded = casted.expandDims(0);
                         return expanded;
@@ -176,19 +193,20 @@ export function Camera(props) {
 
                     setDetections(newDetections);
 
-                    animationFrameId = requestAnimationFrame(runDetection);
+                    // Request the next frame *after* processing is done (or error caught)
+                    if (isDetecting) {
+                        animationFrameId = requestAnimationFrame(runDetection);
+                    }
                 } catch (err) {
                     console.error("Error in runDetection:", err);
                     // Add a delay before retrying after an error
                     setTimeout(() => {
                         if (isDetecting && model) {
-                            // Check again if still should be running
                             animationFrameId = requestAnimationFrame(runDetection);
                         }
                     }, 1000);
                 }
             } else {
-                // If condition is false, schedule the next check if still detecting
                 if (isDetecting) {
                     animationFrameId = requestAnimationFrame(runDetection);
                 }
@@ -196,8 +214,8 @@ export function Camera(props) {
         };
 
         // Setup detection loop if model is ready and detecting is enabled
-        // This initial call is important
         if (isDetecting) {
+            frameCount = 0; // Reset frame count when starting
             animationFrameId = requestAnimationFrame(runDetection);
         }
 
@@ -206,7 +224,7 @@ export function Camera(props) {
                 cancelAnimationFrame(animationFrameId);
             }
         };
-    }, [model, isDetecting, filterIds, labelMap]); // Rerun effect if model, isDetecting, filterIds, or labelMap changes
+    }, [model, isDetecting, filterIds, labelMap]);
 
     const handleUserMedia = () => {
         setTimeout(() => {
