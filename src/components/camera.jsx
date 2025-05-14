@@ -1,8 +1,6 @@
 import { createElement, useRef, useEffect, useState, Fragment } from "react";
 import Webcam from "react-webcam";
-// Remove direct tfjs import if not needed elsewhere in this component
-// import * as tf from "@tensorflow/tfjs";
-import DetectionWorker from "web-worker:../workers/detection.worker.js"; // Use web-worker: prefix
+import DetectionWorker from "web-worker:../workers/detection.worker.js";
 
 export function Camera(props) {
     const webcamRef = useRef(null);
@@ -12,8 +10,6 @@ export function Camera(props) {
     const isWorkerBusy = useRef(false); // Ref to track if worker is processing
     const offscreenCanvasRef = useRef(null); // For drawing video frame to get ImageData
 
-    // Remove model state, use worker readiness instead if needed
-    // const [model, setModel] = useState(null);
     const [detections, setDetections] = useState([]);
     const [isDetecting, setIsDetecting] = useState(false); // Controlled by worker readiness and props
     const [cameraReady, setCameraReady] = useState(false);
@@ -21,12 +17,7 @@ export function Camera(props) {
     const [prevStartRecording, setPrevStartRecording] = useState(false);
     const objectDetectionEnabled = props.objectDetectionEnabled === true;
 
-    // Label map and filter IDs will be sent to the worker, no need for state here unless needed for display elsewhere
-    // const [labelMap, setLabelMap] = useState({});
-    // const [filterIds, setFilterIds] = useState([]);
-
-
-    // --- Worker Setup Effect ---
+    // --- Worker Setup ---
     useEffect(() => {
         if (!objectDetectionEnabled || !props.modelUrl) {
             // If detection is disabled or no model URL, ensure worker is terminated if it exists
@@ -41,36 +32,30 @@ export function Camera(props) {
 
         // Create worker only if detection is enabled and model URL is provided
         console.log("Main: Initializing worker...");
-        // Ensure the path is correct relative to your project setup/bundler output
-        // For Create React App, you might need to configure worker-loader or use public folder
-        // The new path assumes the worker is in a 'public' folder and served at the root.
-        // workerRef.current = new Worker('/detection.worker.js', { type: 'module' }); // Old way
-        workerRef.current = new DetectionWorker(); // New way with loader
+        workerRef.current = new DetectionWorker();
 
         // Initialize offscreen canvas once
-        offscreenCanvasRef.current = document.createElement('canvas');
-
+        offscreenCanvasRef.current = document.createElement("canvas");
 
         // Message handler for worker responses
-        workerRef.current.onmessage = (event) => {
+        workerRef.current.onmessage = event => {
             const { type, payload, message } = event.data;
             // console.log("Main: Received message from worker:", type); // Optional: log messages
 
             switch (type) {
-                case 'ready':
+                case "ready":
                     console.log("Main: Worker reported model ready.");
                     setIsDetecting(true); // Worker is ready, start detection loop if camera is also ready
                     isWorkerBusy.current = false; // Ensure busy flag is reset
                     break;
-                case 'detections':
+                case "detections":
                     setDetections(payload);
                     isWorkerBusy.current = false; // Worker finished, ready for next frame
                     break;
-                case 'error':
+                case "error":
                     console.error("Main: Worker error:", message);
                     setIsDetecting(false); // Stop detection on worker error
                     isWorkerBusy.current = false; // Reset busy flag
-                    // Optionally, add state to show an error message to the user
                     break;
                 default:
                     console.warn("Main: Unknown message type from worker:", type);
@@ -78,10 +63,9 @@ export function Camera(props) {
         };
 
         // Error handler for worker initialization errors
-        workerRef.current.onerror = (error) => {
+        workerRef.current.onerror = error => {
             console.error("Main: Worker initialization failed:", error);
             setIsDetecting(false);
-            // Optionally, add state to show an error message to the user
         };
 
         // --- Load model in worker ---
@@ -89,31 +73,30 @@ export function Camera(props) {
         let labelMap = {};
         let filterIds = [];
         try {
-             labelMap = JSON.parse(props.labelMapString || "{}");
+            labelMap = JSON.parse(props.labelMapString || "{}");
         } catch (err) {
-             console.error("Failed to parse labelMapString:", err);
+            console.error("Failed to parse labelMapString:", err);
         }
         try {
             filterIds = props.filterClassIdsString
-                 ? props.filterClassIdsString
-                       .split(",")
-                       .map(id => parseInt(id.trim(), 10))
-                       .filter(id => !isNaN(id))
-                 : [];
+                ? props.filterClassIdsString
+                      .split(",")
+                      .map(id => parseInt(id.trim(), 10))
+                      .filter(id => !isNaN(id))
+                : [];
         } catch (err) {
             console.error("Failed to parse filterClassIdsString:", err);
         }
 
         console.log("Main: Sending load command to worker.");
         workerRef.current.postMessage({
-            type: 'load',
+            type: "load",
             payload: {
                 modelUrl: props.modelUrl,
                 labelMap: labelMap,
                 filterIds: filterIds
             }
         });
-
 
         // --- Cleanup function ---
         return () => {
@@ -123,13 +106,13 @@ export function Camera(props) {
                 workerRef.current = null;
             }
             setIsDetecting(false); // Ensure detection state is off
-             if (animationFrameRef.current) { // Cancel animation frame on cleanup
-                 cancelAnimationFrame(animationFrameRef.current);
-                 animationFrameRef.current = null;
-             }
+            if (animationFrameRef.current) {
+                // Cancel animation frame on cleanup
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
         };
     }, [objectDetectionEnabled, props.modelUrl, props.labelMapString, props.filterClassIdsString]); // Rerun if these change
-
 
     // --- Frame Capture and Sending Loop ---
     useEffect(() => {
@@ -153,7 +136,7 @@ export function Camera(props) {
                 const canvas = offscreenCanvasRef.current;
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimize for frequent reads
+                const ctx = canvas.getContext("2d", { willReadFrequently: true }); // Optimize for frequent reads
 
                 if (ctx) {
                     ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
@@ -165,24 +148,18 @@ export function Camera(props) {
                     // For potential optimization, investigate OffscreenCanvas and transferControlToOffscreen()
                     // or createImageBitmap() if the worker can handle ImageBitmap input.
                     workerRef.current.postMessage({
-                        type: 'detect',
+                        type: "detect",
                         payload: {
                             imageData: imageData,
                             width: video.videoWidth,
                             height: video.videoHeight
                         }
                     });
-                     // console.timeEnd("Frame Capture & Send"); // Optional timing
+                    // console.timeEnd("Frame Capture & Send"); // Optional timing
                 } else {
-                     console.error("Main: Could not get 2D context from offscreen canvas.");
-                     isWorkerBusy.current = false; // Reset busy flag if context fails
+                    console.error("Main: Could not get 2D context from offscreen canvas.");
+                    isWorkerBusy.current = false; // Reset busy flag if context fails
                 }
-
-            } else {
-                 // Optional: Log why a frame was skipped
-                 // if (video.readyState !== 4) console.log("Skip: Video not ready");
-                 // else if (isWorkerBusy.current) console.log("Skip: Worker busy");
-                 // else if (!video.videoWidth || !video.videoHeight) console.log("Skip: Video dimensions 0");
             }
 
             // Request the next frame
@@ -192,15 +169,15 @@ export function Camera(props) {
         // Start the loop only when the camera and worker are ready
         if (cameraReady && isDetecting) {
             console.log("Main: Starting capture loop.");
-             isWorkerBusy.current = false; // Ensure flag is reset when starting
+            isWorkerBusy.current = false; // Ensure flag is reset when starting
             animationFrameRef.current = requestAnimationFrame(captureLoop);
         } else {
-             // If conditions aren't met, ensure any existing loop is stopped.
-             if (animationFrameRef.current) {
-                 console.log("Main: Stopping capture loop (camera/worker not ready).");
-                 cancelAnimationFrame(animationFrameRef.current);
-                 animationFrameRef.current = null;
-             }
+            // If conditions aren't met, ensure any existing loop is stopped.
+            if (animationFrameRef.current) {
+                console.log("Main: Stopping capture loop (camera/worker not ready).");
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
         }
 
         // Cleanup function for the loop effect
@@ -213,20 +190,11 @@ export function Camera(props) {
         };
     }, [cameraReady, isDetecting]); // Rerun this effect if cameraReady or isDetecting changes
 
-
-    // --- Remove the old detection useEffect ---
-    /*
-    useEffect(() => {
-        // ... old runDetection logic ...
-    }, [model, isDetecting, filterIds, labelMap]);
-    */
-
     const handleUserMedia = () => {
         // Give webcam time to initialize resolution etc.
         setTimeout(() => {
             console.log("Main: Camera ready.");
             setCameraReady(true);
-            // Detection (isDetecting state) will be triggered by worker readiness now
         }, 1000);
     };
 
@@ -345,7 +313,6 @@ export function Camera(props) {
 
             {renderDetections()}
 
-            {/* Show loading until camera is ready AND worker is ready (isDetecting is true) */}
             {(!cameraReady || !isDetecting) && props.loadingContent && objectDetectionEnabled && (
                 <div
                     className="camera-loading"
@@ -361,19 +328,27 @@ export function Camera(props) {
                         backgroundColor: "rgba(0,0,0,0.5)"
                     }}
                 >
-                    {/* Modify loading content maybe? */}
                     {props.loadingContent}
-                    {!cameraReady && <span> Waiting for camera...</span>}
-                    {cameraReady && !isDetecting && <span> Loading model...</span>}
                 </div>
             )}
-             {/* Keep original loading for non-detection case */}
-             {!objectDetectionEnabled && !cameraReady && props.loadingContent && (
-                 <div className="camera-loading" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>
-                     {props.loadingContent}
-                 </div>
+            {!objectDetectionEnabled && !cameraReady && props.loadingContent && (
+                <div
+                    className="camera-loading"
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0,0,0,0.5)"
+                    }}
+                >
+                    {props.loadingContent}
+                </div>
             )}
-
 
             {props.showRecordingIndicator && isRecording && (
                 <div

@@ -17,3 +17,7 @@ Note: Browsers will throw an error if the page is loaded from insecure origin. I
 
 ## Issues, suggestions and feature requests
 https://github.com/hunter-koppen/cameraStream/issues
+
+
+## Rollup config
+Dit was nodig om ervoor te zorgen dat de detection.worker.js te vinden is door de camera.jsx file omdat de web-worker buiten de widget om moet werken.

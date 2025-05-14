@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-import * as tf from '@tensorflow/tfjs';
+import * as tf from "@tensorflow/tfjs";
 
 let model = null;
 let labelMap = {};
@@ -14,17 +14,17 @@ async function loadModel(modelUrl) {
     }
     try {
         console.log("Worker: Setting backend...");
-        await tf.setBackend('webgl'); // Or 'wasm' as fallback if needed
+        await tf.setBackend("webgl"); // Or 'wasm' as fallback if needed
         console.log("Worker: Using TF backend:", tf.getBackend());
         console.log("Worker: Loading model from", modelUrl);
         model = await tf.loadGraphModel(modelUrl);
         console.log("Worker: Model loaded successfully.");
         isReady = true;
-        self.postMessage({ type: 'ready' });
+        self.postMessage({ type: "ready" });
         return true;
     } catch (error) {
         console.error("Worker: Failed to load model or set backend", error);
-        self.postMessage({ type: 'error', message: `Failed to load model: ${error.message}` });
+        self.postMessage({ type: "error", message: `Failed to load model: ${error.message}` });
         return false;
     }
 }
@@ -43,7 +43,7 @@ async function runDetection(imageData, videoWidth, videoHeight) {
             const img = tf.browser.fromPixels(imageData);
             // Ensure resizing matches the model input (adjust if different)
             const resized = tf.image.resizeBilinear(img, [320, 320]);
-            const casted = resized.cast('int32');
+            const casted = resized.cast("int32");
             const expanded = casted.expandDims(0);
             return expanded;
         });
@@ -54,7 +54,7 @@ async function runDetection(imageData, videoWidth, videoHeight) {
             "Identity_1:0", // Boxes
             "Identity_5:0", // Num Detections
             "Identity_4:0", // Scores
-            "Identity_3:0"  // Class Scores (adjust names if model signature differs)
+            "Identity_3:0" // Class Scores (adjust names if model signature differs)
         ];
         const outputTensors = await model.executeAsync(tensor, outputNodeNames);
         // console.timeEnd("Worker: Execute");
@@ -103,15 +103,15 @@ async function runDetection(imageData, videoWidth, videoHeight) {
                         });
                     }
                 }
-                 // Early exit if remaining scores are below threshold (assuming scores are sorted descending)
-                 // Note: SSD Mobilenet outputs might not be strictly sorted, verify if using this optimization
-                 // if (score < scoreThreshold) {
-                 //    break;
-                 // }
+                // Early exit if remaining scores are below threshold (assuming scores are sorted descending)
+                // Note: SSD Mobilenet outputs might not be strictly sorted, verify if using this optimization
+                // if (score < scoreThreshold) {
+                //    break;
+                // }
             }
         } else {
             // Ensure disposal even if no detections or tensors are missing
-             tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw].filter(t => t));
+            tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw].filter(t => t));
         }
 
         tf.dispose(tensor);
@@ -119,52 +119,51 @@ async function runDetection(imageData, videoWidth, videoHeight) {
         // console.timeEnd("Worker: Detection Cycle");
 
         return detections;
-
     } catch (error) {
         console.error("Worker: Error during detection", error);
         // Optionally dispose tensors in case of error if not handled by tf.tidy
         tf.dispose([boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw, tensor].filter(t => t));
-        self.postMessage({ type: 'error', message: `Error during detection: ${error.message}` });
+        self.postMessage({ type: "error", message: `Error during detection: ${error.message}` });
         return []; // Return empty detections on error
     }
 }
 
 // Main message handler for the worker
-self.onmessage = async (event) => {
+self.onmessage = async event => {
     const { type, payload } = event.data;
 
     // console.log("Worker received message:", type, payload);
 
     switch (type) {
-        case 'load':
+        case "load":
             if (!payload || !payload.modelUrl) {
-                 self.postMessage({ type: 'error', message: 'Missing modelUrl for load operation' });
-                 return;
+                self.postMessage({ type: "error", message: "Missing modelUrl for load operation" });
+                return;
             }
             labelMap = payload.labelMap || {};
             filterIds = payload.filterIds || [];
             await loadModel(payload.modelUrl);
             break;
 
-        case 'detect':
+        case "detect":
             if (!model || !isReady) {
                 console.warn("Worker: Ignoring detect message, model not ready.");
                 // Post back empty detections so main thread isn't blocked waiting
-                self.postMessage({ type: 'detections', payload: [] });
+                self.postMessage({ type: "detections", payload: [] });
                 return;
             }
             if (!payload || !payload.imageData || !payload.width || !payload.height) {
-                 self.postMessage({ type: 'error', message: 'Missing imageData or dimensions for detect operation' });
-                 // Post back empty detections
-                 self.postMessage({ type: 'detections', payload: [] });
-                 return;
+                self.postMessage({ type: "error", message: "Missing imageData or dimensions for detect operation" });
+                // Post back empty detections
+                self.postMessage({ type: "detections", payload: [] });
+                return;
             }
             const detections = await runDetection(payload.imageData, payload.width, payload.height);
             // Post the results back to the main thread
-            self.postMessage({ type: 'detections', payload: detections });
+            self.postMessage({ type: "detections", payload: detections });
             break;
 
         default:
             console.warn("Worker: Unknown message type received:", type);
     }
-}; 
+};
