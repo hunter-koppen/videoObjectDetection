@@ -1,8 +1,20 @@
-import { createElement, useRef, useEffect, useState, Fragment } from "react";
-import Webcam from "react-webcam";
+import { Fragment, createElement, useCallback, useEffect, useRef, useState } from "react";
 import DetectionWorker from "web-worker:../workers/detection.worker.js";
+import Webcam from "react-webcam";
 
 export function Camera(props) {
+    const {
+        takeScreenshot,
+        onScreenshot,
+        startRecording: startRecordingProp,
+        onRecordingComplete,
+        objectDetectionEnabled: rawObjectDetectionEnabled,
+        modelUrl,
+        labelMapString,
+        filterClassIdsString
+        // Add other props used in useEffect/useCallback dependencies here as needed
+    } = props;
+
     const webcamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const workerRef = useRef(null); // Ref to hold the worker instance
@@ -15,11 +27,11 @@ export function Camera(props) {
     const [cameraReady, setCameraReady] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
-    const objectDetectionEnabled = props.objectDetectionEnabled === true;
+    const objectDetectionEnabled = rawObjectDetectionEnabled === true;
 
     // --- Worker Setup ---
     useEffect(() => {
-        if (!objectDetectionEnabled || !props.modelUrl) {
+        if (!objectDetectionEnabled || !modelUrl) {
             // If detection is disabled or no model URL, ensure worker is terminated if it exists
             if (workerRef.current) {
                 console.log("Main: Terminating worker due to props change.");
@@ -27,7 +39,7 @@ export function Camera(props) {
                 workerRef.current = null;
                 setIsDetecting(false); // Ensure detection state is off
             }
-            return;
+            return () => {}; // Return a no-op cleanup function for consistency
         }
 
         // Create worker only if detection is enabled and model URL is provided
@@ -73,13 +85,13 @@ export function Camera(props) {
         let labelMap = {};
         let filterIds = [];
         try {
-            labelMap = JSON.parse(props.labelMapString || "{}");
+            labelMap = JSON.parse(labelMapString || "{}");
         } catch (err) {
             console.error("Failed to parse labelMapString:", err);
         }
         try {
-            filterIds = props.filterClassIdsString
-                ? props.filterClassIdsString
+            filterIds = filterClassIdsString
+                ? filterClassIdsString
                       .split(",")
                       .map(id => parseInt(id.trim(), 10))
                       .filter(id => !isNaN(id))
@@ -92,7 +104,7 @@ export function Camera(props) {
         workerRef.current.postMessage({
             type: "load",
             payload: {
-                modelUrl: props.modelUrl,
+                modelUrl: modelUrl,
                 labelMap: labelMap,
                 filterIds: filterIds
             }
@@ -112,7 +124,7 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, props.modelUrl, props.labelMapString, props.filterClassIdsString]); // Rerun if these change
+    }, [objectDetectionEnabled, modelUrl, labelMapString, filterClassIdsString]); // Rerun if these change
 
     // --- Frame Capture and Sending Loop ---
     useEffect(() => {
@@ -237,7 +249,7 @@ export function Camera(props) {
         );
     };
 
-    const startRecording = () => {
+    const startRecording = useCallback(() => {
         if (webcamRef.current && webcamRef.current.stream) {
             const chunks = [];
             const mediaRecorder = new MediaRecorder(webcamRef.current.stream);
@@ -251,8 +263,8 @@ export function Camera(props) {
                         reader.readAsDataURL(videoBlob);
                         reader.onloadend = () => {
                             const base64String = reader.result.split(",")[1];
-                            if (props.onRecordingComplete) {
-                                props.onRecordingComplete(base64String);
+                            if (onRecordingComplete) {
+                                onRecordingComplete(base64String);
                             }
                         };
                         setIsRecording(false);
@@ -262,36 +274,36 @@ export function Camera(props) {
             mediaRecorder.start();
             setIsRecording(true);
         }
-    };
+    }, [onRecordingComplete]); // webcamRef, mediaRecorderRef are refs, setIsRecording is stable
 
-    const stopRecording = () => {
+    const stopRecording = useCallback(() => {
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
         }
-    };
+    }, []); // mediaRecorderRef is a ref
 
     useEffect(() => {
-        if (props.takeScreenshot.value === true && webcamRef.current) {
+        if (takeScreenshot && takeScreenshot.value === true && webcamRef.current) {
             const screenshot = webcamRef.current.getScreenshot();
-            if (props.onScreenshot && screenshot) {
-                props.takeScreenshot.setValue(false);
+            if (onScreenshot && screenshot) {
+                takeScreenshot.setValue(false);
                 const base64String = screenshot.split(",")[1];
-                props.onScreenshot(base64String);
+                onScreenshot(base64String);
             }
         }
-    }, [props.takeScreenshot, props.onScreenshot]);
+    }, [takeScreenshot, onScreenshot]); // webcamRef is a ref, not directly used as dependency here for value check
 
     useEffect(() => {
-        if (!props.startRecording) {
+        if (!startRecordingProp) {
             return;
         }
-        if (props.startRecording.value === true && !prevStartRecording) {
+        if (startRecordingProp.value === true && !prevStartRecording) {
             startRecording();
-        } else if (props.startRecording.value === false && prevStartRecording) {
+        } else if (startRecordingProp.value === false && prevStartRecording) {
             stopRecording();
         }
-        setPrevStartRecording(props.startRecording.value);
-    }, [props.startRecording?.value]);
+        setPrevStartRecording(startRecordingProp.value);
+    }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
     const videoConstraints = {
         facingMode: props.facingMode || "environment"

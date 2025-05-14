@@ -1,7 +1,7 @@
 import { createElement } from "react";
 
-import { Camera } from "./components/camera";
 import "./ui/CameraStream.css";
+import { Camera } from "./components/camera";
 
 export function CameraStream(props) {
     const handleScreenshotTaken = base64String => {
@@ -41,8 +41,8 @@ export function CameraStream(props) {
             facingMode={props.facingMode?.value ?? "environment"}
             objectDetectionEnabled={props.objectDetectionEnabled ?? false}
             modelUrl={props.modelUrl?.value ?? null}
-            labelMapString={props.labelMapString?.value ?? '{}'}
-            filterClassIdsString={props.filterClassIdsString?.value ?? ''}
+            labelMapString={props.labelMapString?.value ?? "{}"}
+            filterClassIdsString={props.filterClassIdsString?.value ?? ""}
             scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
         />
     );

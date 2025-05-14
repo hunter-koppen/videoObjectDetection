@@ -1,5 +1,3 @@
-"use strict";
-
 import * as tf from "@tensorflow/tfjs";
 
 let model = null;
@@ -35,10 +33,17 @@ async function runDetection(imageData, videoWidth, videoHeight) {
         return [];
     }
 
+    let tensor;
+    let outputTensors;
+    let boxesTensorRaw;
+    let numDetectionsTensor;
+    let scoresTensorRaw;
+    let classesInfoTensorRaw;
+
     // console.time("Worker: Detection Cycle"); // Optional: timing inside worker
     try {
         // console.time("Worker: Preprocess");
-        const tensor = tf.tidy(() => {
+        tensor = tf.tidy(() => {
             // Use tf.browser.fromPixels with ImageData
             const img = tf.browser.fromPixels(imageData);
             // Ensure resizing matches the model input (adjust if different)
@@ -56,28 +61,27 @@ async function runDetection(imageData, videoWidth, videoHeight) {
             "Identity_4:0", // Scores
             "Identity_3:0" // Class Scores (adjust names if model signature differs)
         ];
-        const outputTensors = await model.executeAsync(tensor, outputNodeNames);
+        outputTensors = await model.executeAsync(tensor, outputNodeNames);
         // console.timeEnd("Worker: Execute");
 
         // console.time("Worker: Postprocess");
-        const [boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw] = outputTensors;
+        [boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw] = outputTensors;
 
         const numDetections = (await numDetectionsTensor.data())[0];
         tf.dispose(numDetectionsTensor);
 
-        let detections = [];
+        const detections = [];
 
         if (numDetections > 0 && boxesTensorRaw && scoresTensorRaw && classesInfoTensorRaw) {
-            // Use .dataSync() for synchronous data retrieval where possible in worker
-            // or stick to .data() if async operations are preferred/needed
-            const scoresData = scoresTensorRaw.squeeze().dataSync(); // Example sync
+            // Use .data() for asynchronous data retrieval
+            const scoresData = await scoresTensorRaw.squeeze().data();
             tf.dispose(scoresTensorRaw);
 
-            // Derive class IDs (sync example)
-            const classIdsData = tf.argMax(classesInfoTensorRaw, -1).squeeze().dataSync();
+            // Derive class IDs (async example)
+            const classIdsData = await tf.argMax(classesInfoTensorRaw, -1).squeeze().data();
             tf.dispose(classesInfoTensorRaw);
 
-            const boxesData = boxesTensorRaw.squeeze().dataSync(); // Example sync
+            const boxesData = await boxesTensorRaw.squeeze().data();
             tf.dispose(boxesTensorRaw);
 
             const scoreThreshold = 0.5; // Consider making this configurable via message
@@ -111,7 +115,9 @@ async function runDetection(imageData, videoWidth, videoHeight) {
             }
         } else {
             // Ensure disposal even if no detections or tensors are missing
-            tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw].filter(t => t));
+            tf.dispose(
+                [boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw, tensor, ...(outputTensors || [])].filter(t => t)
+            );
         }
 
         tf.dispose(tensor);
@@ -122,7 +128,16 @@ async function runDetection(imageData, videoWidth, videoHeight) {
     } catch (error) {
         console.error("Worker: Error during detection", error);
         // Optionally dispose tensors in case of error if not handled by tf.tidy
-        tf.dispose([boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw, tensor].filter(t => t));
+        tf.dispose(
+            [
+                boxesTensorRaw,
+                numDetectionsTensor,
+                scoresTensorRaw,
+                classesInfoTensorRaw,
+                tensor,
+                ...(outputTensors || [])
+            ].filter(t => t)
+        );
         self.postMessage({ type: "error", message: `Error during detection: ${error.message}` });
         return []; // Return empty detections on error
     }
@@ -145,7 +160,7 @@ self.onmessage = async event => {
             await loadModel(payload.modelUrl);
             break;
 
-        case "detect":
+        case "detect": {
             if (!model || !isReady) {
                 console.warn("Worker: Ignoring detect message, model not ready.");
                 // Post back empty detections so main thread isn't blocked waiting
@@ -162,6 +177,7 @@ self.onmessage = async event => {
             // Post the results back to the main thread
             self.postMessage({ type: "detections", payload: detections });
             break;
+        }
 
         default:
             console.warn("Worker: Unknown message type received:", type);
