@@ -1,240 +1,236 @@
 import { createElement, useRef, useEffect, useState, Fragment } from "react";
 import Webcam from "react-webcam";
-import * as tf from "@tensorflow/tfjs";
+// Remove direct tfjs import if not needed elsewhere in this component
+// import * as tf from "@tensorflow/tfjs";
+import DetectionWorker from "web-worker:../workers/detection.worker.js"; // Use web-worker: prefix
 
 export function Camera(props) {
     const webcamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
-    const [model, setModel] = useState(null);
+    const workerRef = useRef(null); // Ref to hold the worker instance
+    const animationFrameRef = useRef(null); // Ref for the animation frame loop
+    const isWorkerBusy = useRef(false); // Ref to track if worker is processing
+    const offscreenCanvasRef = useRef(null); // For drawing video frame to get ImageData
+
+    // Remove model state, use worker readiness instead if needed
+    // const [model, setModel] = useState(null);
     const [detections, setDetections] = useState([]);
-    const [isDetecting, setIsDetecting] = useState(false);
+    const [isDetecting, setIsDetecting] = useState(false); // Controlled by worker readiness and props
     const [cameraReady, setCameraReady] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
     const objectDetectionEnabled = props.objectDetectionEnabled === true;
-    const [labelMap, setLabelMap] = useState({});
-    const [filterIds, setFilterIds] = useState([]);
 
+    // Label map and filter IDs will be sent to the worker, no need for state here unless needed for display elsewhere
+    // const [labelMap, setLabelMap] = useState({});
+    // const [filterIds, setFilterIds] = useState([]);
+
+
+    // --- Worker Setup Effect ---
     useEffect(() => {
-        if (!objectDetectionEnabled || !props.modelUrl) return;
-
-        const loadModel = async () => {
-            try {
-                const loadedModel = await tf.loadGraphModel(props.modelUrl);
-                setModel(loadedModel);
-                console.log("Using TF backend:", tf.getBackend());
-                console.log("Object detection model loaded");
-            } catch (err) {
-                console.error("Failed to load model:", err);
+        if (!objectDetectionEnabled || !props.modelUrl) {
+            // If detection is disabled or no model URL, ensure worker is terminated if it exists
+            if (workerRef.current) {
+                console.log("Main: Terminating worker due to props change.");
+                workerRef.current.terminate();
+                workerRef.current = null;
+                setIsDetecting(false); // Ensure detection state is off
             }
-        };
-        loadModel();
-    }, [objectDetectionEnabled, props.modelUrl]);
-
-    useEffect(() => {
-        if (!objectDetectionEnabled) return;
-
-        // Parse label map
-        try {
-            const parsedMap = JSON.parse(props.labelMapString || "{}");
-            setLabelMap(parsedMap);
-        } catch (err) {
-            console.error("Failed to parse labelMapString:", err);
-            setLabelMap({}); // Default to empty map on error
+            return;
         }
 
-        // Parse filter IDs
+        // Create worker only if detection is enabled and model URL is provided
+        console.log("Main: Initializing worker...");
+        // Ensure the path is correct relative to your project setup/bundler output
+        // For Create React App, you might need to configure worker-loader or use public folder
+        // The new path assumes the worker is in a 'public' folder and served at the root.
+        // workerRef.current = new Worker('/detection.worker.js', { type: 'module' }); // Old way
+        workerRef.current = new DetectionWorker(); // New way with loader
+
+        // Initialize offscreen canvas once
+        offscreenCanvasRef.current = document.createElement('canvas');
+
+
+        // Message handler for worker responses
+        workerRef.current.onmessage = (event) => {
+            const { type, payload, message } = event.data;
+            // console.log("Main: Received message from worker:", type); // Optional: log messages
+
+            switch (type) {
+                case 'ready':
+                    console.log("Main: Worker reported model ready.");
+                    setIsDetecting(true); // Worker is ready, start detection loop if camera is also ready
+                    isWorkerBusy.current = false; // Ensure busy flag is reset
+                    break;
+                case 'detections':
+                    setDetections(payload);
+                    isWorkerBusy.current = false; // Worker finished, ready for next frame
+                    break;
+                case 'error':
+                    console.error("Main: Worker error:", message);
+                    setIsDetecting(false); // Stop detection on worker error
+                    isWorkerBusy.current = false; // Reset busy flag
+                    // Optionally, add state to show an error message to the user
+                    break;
+                default:
+                    console.warn("Main: Unknown message type from worker:", type);
+            }
+        };
+
+        // Error handler for worker initialization errors
+        workerRef.current.onerror = (error) => {
+            console.error("Main: Worker initialization failed:", error);
+            setIsDetecting(false);
+            // Optionally, add state to show an error message to the user
+        };
+
+        // --- Load model in worker ---
+        // Parse label map and filter IDs here before sending to worker
+        let labelMap = {};
+        let filterIds = [];
         try {
-            const ids = props.filterClassIdsString
-                ? props.filterClassIdsString
-                      .split(",")
-                      .map(id => parseInt(id.trim(), 10))
-                      .filter(id => !isNaN(id))
-                : [];
-            setFilterIds(ids);
+             labelMap = JSON.parse(props.labelMapString || "{}");
+        } catch (err) {
+             console.error("Failed to parse labelMapString:", err);
+        }
+        try {
+            filterIds = props.filterClassIdsString
+                 ? props.filterClassIdsString
+                       .split(",")
+                       .map(id => parseInt(id.trim(), 10))
+                       .filter(id => !isNaN(id))
+                 : [];
         } catch (err) {
             console.error("Failed to parse filterClassIdsString:", err);
-            setFilterIds([]); // Default to empty list on error
         }
-    }, [objectDetectionEnabled, props.labelMapString, props.filterClassIdsString]);
 
+        console.log("Main: Sending load command to worker.");
+        workerRef.current.postMessage({
+            type: 'load',
+            payload: {
+                modelUrl: props.modelUrl,
+                labelMap: labelMap,
+                filterIds: filterIds
+            }
+        });
+
+
+        // --- Cleanup function ---
+        return () => {
+            console.log("Main: Terminating worker on component unmount or props change.");
+            if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+            }
+            setIsDetecting(false); // Ensure detection state is off
+             if (animationFrameRef.current) { // Cancel animation frame on cleanup
+                 cancelAnimationFrame(animationFrameRef.current);
+                 animationFrameRef.current = null;
+             }
+        };
+    }, [objectDetectionEnabled, props.modelUrl, props.labelMapString, props.filterClassIdsString]); // Rerun if these change
+
+
+    // --- Frame Capture and Sending Loop ---
     useEffect(() => {
-        if (!objectDetectionEnabled || !model) return;
-
-        let animationFrameId;
-        // --- Frame Skipping ---
-        let frameCount = 0;
-        const processEveryNFrames = 3; // Adjust this value (e.g., 2, 3) to change detection frequency
-        // --- End Frame Skipping ---
-
-        const runDetection = async () => {
-            // --- Frame Skipping Check ---
-            frameCount++;
-            if (frameCount % processEveryNFrames !== 0) {
-                // Skip this frame, but request the next one
-                if (isDetecting) {
-                    // Check if still detecting before requesting next frame
-                    animationFrameId = requestAnimationFrame(runDetection);
-                }
+        const captureLoop = () => {
+            // Stop loop if detection isn't active or worker isn't ready/initialized
+            if (!isDetecting || !workerRef.current || !webcamRef.current || !webcamRef.current.video) {
+                animationFrameRef.current = requestAnimationFrame(captureLoop); // Keep checking
                 return;
             }
-            // --- End Frame Skipping Check ---
 
-            if (model && webcamRef.current && webcamRef.current.video && isDetecting) {
-                const video = webcamRef.current.video;
-                if (video.readyState !== 4 || !video.videoWidth || !video.videoHeight) {
-                    animationFrameId = requestAnimationFrame(runDetection);
-                    return;
-                }
-                try {
-                    const videoWidth = video.videoWidth;
-                    const videoHeight = video.videoHeight;
+            const video = webcamRef.current.video;
 
-                    // Preprocess the video frame
-                    const tensor = tf.tidy(() => {
-                        const img = tf.browser.fromPixels(video);
-                        // Resize the image to the expected input size (640x640) change this to match the model input size
-                        const resized = tf.image.resizeBilinear(img, [320, 320]);
-                        const casted = resized.cast("int32"); // Cast after resizing
-                        const expanded = casted.expandDims(0);
-                        return expanded;
+            // Check if video is ready and worker is not busy
+            if (video.readyState === 4 && video.videoWidth > 0 && video.videoHeight > 0 && !isWorkerBusy.current) {
+                // console.time("Frame Capture & Send"); // Optional timing
+
+                // Set worker as busy
+                isWorkerBusy.current = true;
+
+                // Draw video frame to the offscreen canvas
+                const canvas = offscreenCanvasRef.current;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimize for frequent reads
+
+                if (ctx) {
+                    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                    // Get ImageData from the canvas
+                    const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+
+                    // Send ImageData to the worker
+                    // Note: ImageData is NOT Transferable, it will be copied (structured clone algorithm)
+                    // For potential optimization, investigate OffscreenCanvas and transferControlToOffscreen()
+                    // or createImageBitmap() if the worker can handle ImageBitmap input.
+                    workerRef.current.postMessage({
+                        type: 'detect',
+                        payload: {
+                            imageData: imageData,
+                            width: video.videoWidth,
+                            height: video.videoHeight
+                        }
                     });
-
-                    // Execute the model - Request ALL output tensors from signature
-                    const outputNodeNames = [
-                        // Only request the tensors we now know we need
-                        "Identity_1:0", // Boxes (Index 0 in new map)
-                        "Identity_5:0", // Num Detections (Index 1 in new map)
-                        "Identity_4:0", // Scores (Index 2 in new map)
-                        "Identity_3:0" // Class Specific Scores [1, 100, 2] (Index 3 in new map)
-                    ];
-                    const outputTensors = await model.executeAsync(tensor, outputNodeNames);
-                    const [boxesTensorRaw, numDetectionsTensor, scoresTensorRaw, classesInfoTensorRaw] = outputTensors;
-
-                    const numDetections = (await numDetectionsTensor.data())[0];
-                    tf.dispose(numDetectionsTensor);
-
-                    let newDetections = [];
-
-                    if (numDetections > 0) {
-                        // --- Manual Tensor Operations and Disposal ---
-
-                        // 1. Get Scores & Dispose Original Raw
-                        const scores = scoresTensorRaw.squeeze();
-                        tf.dispose(scoresTensorRaw);
-
-                        // 2. Derive Class IDs & Dispose Original Raw
-                        const classIds = tf.argMax(classesInfoTensorRaw, -1).squeeze();
-                        tf.dispose(classesInfoTensorRaw);
-
-                        // 3. Create Masks
-                        const scoreThreshold = 0.5;
-                        const scoreMask = tf.greaterEqual(scores, scoreThreshold);
-
-                        // Create class mask based on filterIds
-                        let classMask;
-                        if (filterIds.length === 0) {
-                            // If no filter IDs provided, allow all classes that pass the score threshold.
-                            classMask = tf.fill(classIds.shape, true, "bool");
-                        } else {
-                            // Compare each detected classId with the allowed filterIds
-                            const filterIdsTensor = tf.tensor1d(filterIds, "int32");
-                            const comparison = tf.equal(classIds.expandDims(-1), filterIdsTensor.expandDims(0));
-                            classMask = tf.any(comparison, -1); // Check if the classId matches *any* of the filterIds
-                            tf.dispose([filterIdsTensor, comparison]); // Dispose intermediate tensors
-                        }
-
-                        const finalMask = tf.logicalAnd(scoreMask, classMask);
-                        tf.dispose([scoreMask, classMask]); // Dispose intermediate masks
-
-                        // 4. Apply Mask using booleanMaskAsync
-                        const boxesReshaped = boxesTensorRaw.squeeze();
-                        tf.dispose(boxesTensorRaw); // Dispose original raw boxes tensor
-
-                        // Apply mask to boxes, scores, and classIds
-                        const finalBoxesTensor = await tf.booleanMaskAsync(boxesReshaped, finalMask);
-                        const finalScoresTensor = await tf.booleanMaskAsync(scores, finalMask);
-                        const finalClassIdsTensor = await tf.booleanMaskAsync(classIds, finalMask); // Filter classIds as well
-
-                        // Dispose remaining intermediate tensors no longer needed
-                        tf.dispose([scores, classIds, finalMask, boxesReshaped]);
-
-                        // 5. Await data from filtered tensors
-                        const finalBoxesData = await finalBoxesTensor.data();
-                        const finalScoresData = await finalScoresTensor.data();
-                        const finalClassIdsData = await finalClassIdsTensor.data(); // Get filtered class IDs
-
-                        // 6. Dispose final tensors
-                        tf.dispose([finalBoxesTensor, finalScoresTensor, finalClassIdsTensor]);
-
-                        // 7. Process filtered data
-                        for (let i = 0; i < finalScoresData.length; i++) {
-                            const score = finalScoresData[i];
-                            const classId = finalClassIdsData[i]; // Use the filtered class ID
-                            const className = labelMap[classId] || `Class ${classId}`; // Get name from parsed map, provide fallback
-                            const [ymin, xmin, ymax, xmax] = finalBoxesData.slice(i * 4, (i + 1) * 4);
-                            const bboxLeft = xmin * videoWidth;
-                            const bboxTop = ymin * videoHeight;
-                            const bboxWidth = (xmax - xmin) * videoWidth;
-                            const bboxHeight = (ymax - ymin) * videoHeight;
-                            newDetections.push({
-                                class: className,
-                                score: score,
-                                bbox: [bboxLeft, bboxTop, bboxWidth, bboxHeight]
-                            });
-                        }
-                    } else {
-                        // Dispose raw tensors if no detections
-                        tf.dispose([boxesTensorRaw, scoresTensorRaw, classesInfoTensorRaw]);
-                    }
-
-                    // Dispose input tensor
-                    tf.dispose(tensor);
-
-                    setDetections(newDetections);
-
-                    // Request the next frame *after* processing is done (or error caught)
-                    if (isDetecting) {
-                        animationFrameId = requestAnimationFrame(runDetection);
-                    }
-                } catch (err) {
-                    console.error("Error in runDetection:", err);
-                    // Add a delay before retrying after an error
-                    setTimeout(() => {
-                        if (isDetecting && model) {
-                            animationFrameId = requestAnimationFrame(runDetection);
-                        }
-                    }, 1000);
+                     // console.timeEnd("Frame Capture & Send"); // Optional timing
+                } else {
+                     console.error("Main: Could not get 2D context from offscreen canvas.");
+                     isWorkerBusy.current = false; // Reset busy flag if context fails
                 }
+
             } else {
-                if (isDetecting) {
-                    animationFrameId = requestAnimationFrame(runDetection);
-                }
+                 // Optional: Log why a frame was skipped
+                 // if (video.readyState !== 4) console.log("Skip: Video not ready");
+                 // else if (isWorkerBusy.current) console.log("Skip: Worker busy");
+                 // else if (!video.videoWidth || !video.videoHeight) console.log("Skip: Video dimensions 0");
             }
+
+            // Request the next frame
+            animationFrameRef.current = requestAnimationFrame(captureLoop);
         };
 
-        // Setup detection loop if model is ready and detecting is enabled
-        if (isDetecting) {
-            frameCount = 0; // Reset frame count when starting
-            animationFrameId = requestAnimationFrame(runDetection);
+        // Start the loop only when the camera and worker are ready
+        if (cameraReady && isDetecting) {
+            console.log("Main: Starting capture loop.");
+             isWorkerBusy.current = false; // Ensure flag is reset when starting
+            animationFrameRef.current = requestAnimationFrame(captureLoop);
+        } else {
+             // If conditions aren't met, ensure any existing loop is stopped.
+             if (animationFrameRef.current) {
+                 console.log("Main: Stopping capture loop (camera/worker not ready).");
+                 cancelAnimationFrame(animationFrameRef.current);
+                 animationFrameRef.current = null;
+             }
         }
 
+        // Cleanup function for the loop effect
         return () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
+            if (animationFrameRef.current) {
+                console.log("Main: Stopping capture loop on effect cleanup.");
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
             }
         };
+    }, [cameraReady, isDetecting]); // Rerun this effect if cameraReady or isDetecting changes
+
+
+    // --- Remove the old detection useEffect ---
+    /*
+    useEffect(() => {
+        // ... old runDetection logic ...
     }, [model, isDetecting, filterIds, labelMap]);
+    */
 
     const handleUserMedia = () => {
+        // Give webcam time to initialize resolution etc.
         setTimeout(() => {
+            console.log("Main: Camera ready.");
             setCameraReady(true);
-            if (objectDetectionEnabled) {
-                setIsDetecting(true);
-            }
+            // Detection (isDetecting state) will be triggered by worker readiness now
         }, 1000);
     };
 
+    // renderDetections remains the same, it just consumes the 'detections' state
     const renderDetections = () => {
         if (!objectDetectionEnabled || !detections.length) return null;
 
@@ -349,7 +345,8 @@ export function Camera(props) {
 
             {renderDetections()}
 
-            {!cameraReady && props.loadingContent && (
+            {/* Show loading until camera is ready AND worker is ready (isDetecting is true) */}
+            {(!cameraReady || !isDetecting) && props.loadingContent && objectDetectionEnabled && (
                 <div
                     className="camera-loading"
                     style={{
@@ -364,9 +361,19 @@ export function Camera(props) {
                         backgroundColor: "rgba(0,0,0,0.5)"
                     }}
                 >
+                    {/* Modify loading content maybe? */}
                     {props.loadingContent}
+                    {!cameraReady && <span> Waiting for camera...</span>}
+                    {cameraReady && !isDetecting && <span> Loading model...</span>}
                 </div>
             )}
+             {/* Keep original loading for non-detection case */}
+             {!objectDetectionEnabled && !cameraReady && props.loadingContent && (
+                 <div className="camera-loading" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>
+                     {props.loadingContent}
+                 </div>
+            )}
+
 
             {props.showRecordingIndicator && isRecording && (
                 <div
