@@ -305,9 +305,17 @@ export function Camera(props) {
         setPrevStartRecording(startRecordingProp.value);
     }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
-    const videoConstraints = {
-        facingMode: props.facingMode || "environment"
+    const getVideoConstraints = () => {
+        const constraints = {
+            facingMode: props.facingMode || "environment"
+        };
+        if (props.torchEnabled === true) {
+            constraints.advanced = [{ torch: true }];
+        }
+        return constraints;
     };
+
+    const videoConstraints = getVideoConstraints();
 
     return (
         <div

@@ -44,6 +44,7 @@ export function CameraStream(props) {
             labelMapString={props.labelMapString?.value ?? "{}"}
             filterClassIdsString={props.filterClassIdsString?.value ?? ""}
             scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
+            torchEnabled={props.torchEnabled?.value ?? false}
         />
     );
 }

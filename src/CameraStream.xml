@@ -48,6 +48,13 @@
                     <description>Use 'environment' to use the rear camera, 'user' to use the front camera</description>
                     <returnType type="String" />
                 </property>
+                <property key="torchEnabled" type="attribute" required="false">
+                    <caption>Flashlight enabled</caption>
+                    <description>Toggle boolean to true to turn on the flashlight.</description>
+                    <attributeTypes>
+                        <attributeType name="Boolean"/>
+                    </attributeTypes>
+                </property>
             </propertyGroup>
         </propertyGroup>
         <propertyGroup caption="Screenshot">
