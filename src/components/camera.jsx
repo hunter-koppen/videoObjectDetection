@@ -1,4 +1,4 @@
-import { Fragment, createElement, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, createElement, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import DetectionWorker from "web-worker:../workers/detection.worker.js";
 import Webcam from "react-webcam";
 
@@ -305,7 +305,7 @@ export function Camera(props) {
         setPrevStartRecording(startRecordingProp.value);
     }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
-    const getVideoConstraints = () => {
+    const videoConstraints = useMemo(() => {
         const constraints = {
             facingMode: props.facingMode || "environment"
         };
@@ -313,9 +313,34 @@ export function Camera(props) {
             constraints.advanced = [{ torch: true }];
         }
         return constraints;
-    };
+    }, [props.facingMode]);
 
-    const videoConstraints = getVideoConstraints();
+    useEffect(() => {
+        if (!webcamRef.current || !webcamRef.current.stream) {
+            return;
+        }
+        const videoTrack = webcamRef.current.stream.getVideoTracks()[0];
+        if (!videoTrack) {
+            return;
+        }
+        if (props.torchEnabled === true) {
+            videoTrack
+                .applyConstraints({
+                    advanced: [{ torch: true }]
+                })
+                .catch(error => {
+                    console.error("Failed to apply torch setting:", error);
+                });
+        } else {
+            videoTrack
+                .applyConstraints({
+                    advanced: [{ torch: false }]
+                })
+                .catch(error => {
+                    console.error("Failed to apply torch setting:", error);
+                });
+        }
+    }, [props.torchEnabled]);
 
     return (
         <div
