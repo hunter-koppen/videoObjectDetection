@@ -1,7 +1,6 @@
-import { createElement } from "react";
-
 import "./ui/CameraStream.css";
 import { Camera } from "./components/camera";
+import { createElement } from "react";
 
 export function CameraStream(props) {
     const handleScreenshotTaken = base64String => {

@@ -1,24 +1,9 @@
-import { Fragment, createElement, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { Fragment, createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Big } from "big.js";
 import DetectionWorker from "web-worker:../workers/detection.worker.js";
 import Webcam from "react-webcam";
-import { Big } from "big.js";
 
 // Utility functions for image quality analysis
-const analyzeImageQuality = imageData => {
-    const { data, width, height } = imageData;
-
-    // Calculate blur using Laplacian variance
-    const blurScore = calculateBlurScore(data, width, height);
-
-    // Calculate lighting using brightness and contrast
-    const lightingScore = calculateLightingScore(data);
-
-    return {
-        blurScore: blurScore,
-        badLightingScore: lightingScore
-    };
-};
-
 const calculateBlurScore = (data, width, height) => {
     let variance = 0;
     let count = 0;
@@ -62,6 +47,21 @@ const calculateLightingScore = data => {
     }
 
     return totalPixels > 0 ? totalBrightness / totalPixels : 0;
+};
+
+const analyzeImageQuality = imageData => {
+    const { data, width, height } = imageData;
+
+    // Calculate blur using Laplacian variance
+    const blurScore = calculateBlurScore(data, width, height);
+
+    // Calculate lighting using brightness and contrast
+    const lightingScore = calculateLightingScore(data);
+
+    return {
+        blurScore: blurScore,
+        badLightingScore: lightingScore
+    };
 };
 
 export function Camera(props) {
@@ -381,11 +381,11 @@ export function Camera(props) {
                 } else {
                     takeScreenshot.setValue(false);
                     const base64String = screenshot.split(",")[1];
-                    base64String;
+                    onScreenshot(base64String);
                 }
             }
         }
-    }, [takeScreenshot, onScreenshot]);
+    }, [takeScreenshot, onScreenshot, blurScore, badLightingScore]);
 
     useEffect(() => {
         if (!startRecordingProp) {
@@ -407,7 +407,7 @@ export function Camera(props) {
             constraints.advanced = [{ torch: true }];
         }
         return constraints;
-    }, [props.facingMode]);
+    }, [props.facingMode, props.torchEnabled]);
 
     useEffect(() => {
         if (!webcamRef.current || !webcamRef.current.stream) {
