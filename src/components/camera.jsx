@@ -1,6 +1,68 @@
 import { Fragment, createElement, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import DetectionWorker from "web-worker:../workers/detection.worker.js";
 import Webcam from "react-webcam";
+import { Big } from "big.js";
+
+// Utility functions for image quality analysis
+const analyzeImageQuality = imageData => {
+    const { data, width, height } = imageData;
+
+    // Calculate blur using Laplacian variance
+    const blurScore = calculateBlurScore(data, width, height);
+
+    // Calculate lighting using brightness and contrast
+    const lightingScore = calculateLightingScore(data);
+
+    return {
+        blurScore: blurScore,
+        badLightingScore: lightingScore
+    };
+};
+
+const calculateBlurScore = (data, width, height) => {
+    let variance = 0;
+    let count = 0;
+
+    // Sample pixels for performance (every 4th pixel)
+    for (let y = 1; y < height - 1; y += 4) {
+        for (let x = 1; x < width - 1; x += 4) {
+            const idx = (y * width + x) * 4;
+
+            // Get surrounding pixels
+            const current = data[idx];
+            const left = data[idx - 4];
+            const right = data[idx + 4];
+            const top = data[idx - width * 4];
+            const bottom = data[idx + width * 4];
+
+            // Laplacian filter approximation
+            const laplacian = Math.abs(4 * current - left - right - top - bottom);
+            variance += laplacian * laplacian;
+            count++;
+        }
+    }
+
+    return count > 0 ? variance / count : 0;
+};
+
+const calculateLightingScore = data => {
+    let totalBrightness = 0;
+    let totalPixels = 0;
+
+    // Sample pixels for performance (every 4th pixel)
+    for (let i = 0; i < data.length; i += 16) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // Calculate brightness (weighted average of RGB)
+        const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        totalBrightness += brightness;
+        totalPixels++;
+    }
+
+    return totalPixels > 0 ? totalBrightness / totalPixels : 0;
+};
 
 export function Camera(props) {
     const {
@@ -11,8 +73,9 @@ export function Camera(props) {
         objectDetectionEnabled: rawObjectDetectionEnabled,
         modelUrl,
         labelMapString,
-        filterClassIdsString
-        // Add other props used in useEffect/useCallback dependencies here as needed
+        filterClassIdsString,
+        blurScore,
+        badLightingScore
     } = props;
 
     const webcamRef = useRef(null);
@@ -286,12 +349,43 @@ export function Camera(props) {
         if (takeScreenshot && takeScreenshot.value === true && webcamRef.current) {
             const screenshot = webcamRef.current.getScreenshot();
             if (onScreenshot && screenshot) {
-                takeScreenshot.setValue(false);
-                const base64String = screenshot.split(",")[1];
-                onScreenshot(base64String);
+                if (blurScore || badLightingScore) {
+                    // Analyze image quality
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+                    const img = new Image();
+
+                    img.onload = () => {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+
+                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                        const quality = analyzeImageQuality(imageData);
+
+                        if (blurScore && blurScore.setValue) {
+                            const blurScoreValue = new Big(quality.blurScore.toFixed(0));
+                            blurScore.setValue(blurScoreValue);
+                        }
+                        if (badLightingScore && badLightingScore.setValue) {
+                            const badLightingScoreValue = new Big(quality.badLightingScore.toFixed(2));
+                            badLightingScore.setValue(badLightingScoreValue);
+                        }
+
+                        takeScreenshot.setValue(false);
+                        const base64String = screenshot.split(",")[1];
+                        onScreenshot(base64String);
+                    };
+
+                    img.src = screenshot;
+                } else {
+                    takeScreenshot.setValue(false);
+                    const base64String = screenshot.split(",")[1];
+                    base64String;
+                }
             }
         }
-    }, [takeScreenshot, onScreenshot]); // webcamRef is a ref, not directly used as dependency here for value check
+    }, [takeScreenshot, onScreenshot]);
 
     useEffect(() => {
         if (!startRecordingProp) {

@@ -73,6 +73,20 @@
                         <attributeType name="String"/>
                     </attributeTypes>
                 </property>
+                <property key="blurScore" type="attribute" required="false">
+                    <caption>Blur score</caption>
+                    <description>Will be set when taking a screenshot. Value is roughly between 0 and 3000.</description>
+                    <attributeTypes>
+                        <attributeType name="Decimal"/>
+                    </attributeTypes>
+                </property>
+                <property key="badLightingScore" type="attribute" required="false">
+                    <caption>Bad lighting score</caption>
+                    <description>Will be set when taking a screenshot. Value is between 0 and 1.</description>
+                    <attributeTypes>
+                        <attributeType name="Decimal"/>
+                    </attributeTypes>
+                </property>
                 <property key="onScreenshotCapture" type="action" required="false">
                     <caption>On screenshot capture</caption>
                     <description></description>

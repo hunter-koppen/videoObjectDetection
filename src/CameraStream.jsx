@@ -45,6 +45,8 @@ export function CameraStream(props) {
             filterClassIdsString={props.filterClassIdsString?.value ?? ""}
             scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
             torchEnabled={props.torchEnabled?.value ?? false}
+            blurScore={props.blurScore}
+            badLightingScore={props.badLightingScore}
         />
     );
 }
