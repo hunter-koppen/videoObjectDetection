@@ -106,7 +106,6 @@ export function Camera(props) {
         }
 
         // Create worker only if detection is enabled and model URL is provided
-        console.log("Main: Initializing worker...");
         workerRef.current = new DetectionWorker();
 
         // Initialize offscreen canvas once
@@ -115,22 +114,20 @@ export function Camera(props) {
         // Message handler for worker responses
         workerRef.current.onmessage = event => {
             const { type, payload, message } = event.data;
-            // console.log("Main: Received message from worker:", type); // Optional: log messages
 
             switch (type) {
                 case "ready":
-                    console.log("Main: Worker reported model ready.");
-                    setIsDetecting(true); // Worker is ready, start detection loop if camera is also ready
-                    isWorkerBusy.current = false; // Ensure busy flag is reset
+                    setIsDetecting(true);
+                    isWorkerBusy.current = false;
                     break;
                 case "detections":
                     setDetections(payload);
-                    isWorkerBusy.current = false; // Worker finished, ready for next frame
+                    isWorkerBusy.current = false;
                     break;
                 case "error":
                     console.error("Main: Worker error:", message);
-                    setIsDetecting(false); // Stop detection on worker error
-                    isWorkerBusy.current = false; // Reset busy flag
+                    setIsDetecting(false);
+                    isWorkerBusy.current = false;
                     break;
                 default:
                     console.warn("Main: Unknown message type from worker:", type);
@@ -143,7 +140,6 @@ export function Camera(props) {
             setIsDetecting(false);
         };
 
-        // --- Load model in worker ---
         // Parse label map and filter IDs here before sending to worker
         let labelMap = {};
         let filterIds = [];
@@ -169,25 +165,24 @@ export function Camera(props) {
             payload: {
                 modelUrl: modelUrl,
                 labelMap: labelMap,
-                filterIds: filterIds
+                filterIds: filterIds,
+                scoreThreshold: props.scoreThreshold || 0.5
             }
         });
 
         // --- Cleanup function ---
         return () => {
-            console.log("Main: Terminating worker on component unmount or props change.");
             if (workerRef.current) {
                 workerRef.current.terminate();
                 workerRef.current = null;
             }
-            setIsDetecting(false); // Ensure detection state is off
+            setIsDetecting(false);
             if (animationFrameRef.current) {
-                // Cancel animation frame on cleanup
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelUrl, labelMapString, filterClassIdsString]); // Rerun if these change
+    }, [objectDetectionEnabled, modelUrl, labelMapString, filterClassIdsString, props.scoreThreshold]); // Rerun if these change
 
     // --- Frame Capture and Sending Loop ---
     useEffect(() => {
@@ -268,7 +263,6 @@ export function Camera(props) {
     const handleUserMedia = () => {
         // Give webcam time to initialize resolution etc.
         setTimeout(() => {
-            console.log("Main: Camera ready.");
             setCameraReady(true);
         }, 1000);
     };
