@@ -1,4 +1,6 @@
 import "./ui/CameraStream.css";
+
+import Big from "big.js";
 import { Camera } from "./components/camera";
 import { createElement } from "react";
 
@@ -18,6 +20,18 @@ export function CameraStream(props) {
         }
         if (props.onRecordingComplete && props.onRecordingComplete.canExecute) {
             props.onRecordingComplete.execute();
+        }
+    };
+
+    const handleDetectionValidation = (detectionRate, averageDetectionScore) => {
+        if (props.detectionRate) {
+            props.detectionRate.setValue(new Big(detectionRate.toFixed(2)));
+        }
+        if (props.averageDetectionScore) {
+            props.averageDetectionScore.setValue(new Big(averageDetectionScore.toFixed(2)));
+        }
+        if (props.onDetectionValidation && props.onDetectionValidation.canExecute) {
+            props.onDetectionValidation.execute();
         }
     };
 
@@ -47,6 +61,9 @@ export function CameraStream(props) {
             torchEnabled={props.torchEnabled?.value ?? false}
             blurScore={props.blurScore}
             badLightingScore={props.badLightingScore}
+            detectionValidationEnabled={props.detectionValidationEnabled?.value ?? false}
+            validationDuration={props.validationDuration?.value ?? 1500}
+            onDetectionValidation={handleDetectionValidation}
         />
     );
 }

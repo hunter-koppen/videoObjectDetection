@@ -75,7 +75,10 @@ export function Camera(props) {
         labelMapString,
         filterClassIdsString,
         blurScore,
-        badLightingScore
+        badLightingScore,
+        detectionValidationEnabled,
+        validationDuration,
+        onDetectionValidation
     } = props;
 
     const webcamRef = useRef(null);
@@ -84,6 +87,14 @@ export function Camera(props) {
     const animationFrameRef = useRef(null); // Ref for the animation frame loop
     const isWorkerBusy = useRef(false); // Ref to track if worker is processing
     const offscreenCanvasRef = useRef(null); // For drawing video frame to get ImageData
+
+    // Detection validation tracking
+    const validationTimerRef = useRef(null);
+    const detectionHistoryRef = useRef({
+        totalFrames: 0,
+        framesWithDetections: 0,
+        detectionScores: []
+    });
 
     const [detections, setDetections] = useState([]);
     const [isDetecting, setIsDetecting] = useState(false); // Controlled by worker readiness and props
@@ -102,7 +113,9 @@ export function Camera(props) {
                 workerRef.current = null;
                 setIsDetecting(false); // Ensure detection state is off
             }
-            return () => {}; // Return a no-op cleanup function for consistency
+            return () => {
+                // No cleanup needed for early return
+            };
         }
 
         // Create worker only if detection is enabled and model URL is provided
@@ -123,6 +136,18 @@ export function Camera(props) {
                 case "detections":
                     setDetections(payload);
                     isWorkerBusy.current = false;
+
+                    // Track detection validation metrics if enabled
+                    if (detectionValidationEnabled && payload) {
+                        detectionHistoryRef.current.totalFrames++;
+                        if (payload.length > 0) {
+                            detectionHistoryRef.current.framesWithDetections++;
+                            // Add all detection scores to our tracking array
+                            payload.forEach(detection => {
+                                detectionHistoryRef.current.detectionScores.push(detection.score);
+                            });
+                        }
+                    }
                     break;
                 case "error":
                     console.error("Main: Worker error:", message);
@@ -182,7 +207,14 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelUrl, labelMapString, filterClassIdsString, props.scoreThreshold]); // Rerun if these change
+    }, [
+        objectDetectionEnabled,
+        modelUrl,
+        labelMapString,
+        filterClassIdsString,
+        props.scoreThreshold,
+        detectionValidationEnabled
+    ]); // Rerun if these change
 
     // --- Frame Capture and Sending Loop ---
     useEffect(() => {
@@ -429,6 +461,61 @@ export function Camera(props) {
                 });
         }
     }, [props.torchEnabled]);
+
+    // --- Detection Validation Timer ---
+    useEffect(() => {
+        if (!detectionValidationEnabled || !validationDuration || !isDetecting) {
+            // Clear existing timer if validation is disabled
+            if (validationTimerRef.current) {
+                clearInterval(validationTimerRef.current);
+                validationTimerRef.current = null;
+            }
+            return () => {
+                // No cleanup needed for early return
+            };
+        }
+
+        // Reset validation tracking when starting
+        detectionHistoryRef.current = {
+            totalFrames: 0,
+            framesWithDetections: 0,
+            detectionScores: []
+        };
+
+        // Set up validation timer
+        validationTimerRef.current = setInterval(() => {
+            const history = detectionHistoryRef.current;
+
+            // Calculate detection rate (percentage of frames with detections)
+            const detectionRate = history.totalFrames > 0 ? history.framesWithDetections / history.totalFrames : 0;
+
+            // Calculate average detection score
+            const averageDetectionScore =
+                history.detectionScores.length > 0
+                    ? history.detectionScores.reduce((sum, score) => sum + score, 0) / history.detectionScores.length
+                    : 0;
+
+            // Call the validation callback
+            if (onDetectionValidation) {
+                onDetectionValidation(detectionRate, averageDetectionScore);
+            }
+
+            // Reset tracking for next validation period
+            detectionHistoryRef.current = {
+                totalFrames: 0,
+                framesWithDetections: 0,
+                detectionScores: []
+            };
+        }, validationDuration);
+
+        // Cleanup function
+        return () => {
+            if (validationTimerRef.current) {
+                clearInterval(validationTimerRef.current);
+                validationTimerRef.current = null;
+            }
+        };
+    }, [detectionValidationEnabled, validationDuration, isDetecting, onDetectionValidation]);
 
     return (
         <div

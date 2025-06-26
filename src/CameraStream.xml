@@ -158,6 +158,36 @@
                     <returnType type="Decimal" />
                 </property>
             </propertyGroup>
+            <propertyGroup caption="Detection Validation">
+                <property key="detectionValidationEnabled" type="expression" defaultValue="false" required="false">
+                    <caption>Detection Validation Enabled</caption>
+                    <description>Toggle boolean to true to enable the detection validation</description>
+                    <returnType type="Boolean" />
+                </property>
+                <property key="validationDuration" type="expression" defaultValue="1500" required="false">
+                    <caption>Validation Duration</caption>
+                    <description>How ofter the validation should fire in milliseconds</description>
+                    <returnType type="Integer" />
+                </property>
+                <property key="detectionRate" type="attribute" required="false">
+                    <caption>Detection Rate</caption>
+                    <description>The percentage of targeted detection during the duration. 0.5 means 50% of the duration</description>
+                    <attributeTypes>
+                        <attributeType name="Decimal"/>
+                    </attributeTypes>
+                </property>
+                <property key="averageDetectionScore" type="attribute" required="false">
+                    <caption>Average Detection Score</caption>
+                    <description>The average score of the detections during the duration</description>
+                    <attributeTypes>
+                        <attributeType name="Decimal"/>
+                    </attributeTypes>
+                </property>
+                <property key="onDetectionValidation" type="action" required="false">
+                    <caption>On detection validation</caption>
+                    <description>Action to fire when the detection validation is triggered</description>
+                </property>
+            </propertyGroup>
         </propertyGroup>
     </properties>
 </widget>
