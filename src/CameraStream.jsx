@@ -43,6 +43,7 @@ export function CameraStream(props) {
             labelMapString={props.labelMapString?.value ?? "{}"}
             filterClassIdsString={props.filterClassIdsString?.value ?? ""}
             scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
+            showBoundingBoxes={props.showBoundingBoxes?.value ?? false}
             torchEnabled={props.torchEnabled?.value ?? false}
             blurScore={props.blurScore}
             badLightingScore={props.badLightingScore}

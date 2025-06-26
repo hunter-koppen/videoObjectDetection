@@ -444,7 +444,7 @@ export function Camera(props) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
 
-            {renderDetections()}
+            {props.showBoundingBoxes && renderDetections()}
 
             {(!cameraReady || !isDetecting) && props.loadingContent && objectDetectionEnabled && (
                 <div

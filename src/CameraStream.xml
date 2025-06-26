@@ -142,6 +142,11 @@
                 </property>
             </propertyGroup>
             <propertyGroup caption="Settings">
+                <property key="showBoundingBoxes" type="expression" defaultValue="false" required="false">
+                    <caption>Show bounding boxes</caption>
+                    <description>Show the green bounding boxes around the detected objects on the camera stream</description>
+                    <returnType type="Boolean" />
+                </property>
                 <property key="filterClassIdsString" type="expression" defaultValue="''" required="false">
                     <caption>Filter Class IDs</caption>
                     <description>Comma-separated string of class IDs to detect. If empty, all classes passing the score threshold will be shown. Example: '1,2'</description>
