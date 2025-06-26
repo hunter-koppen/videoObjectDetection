@@ -1,12 +1,12 @@
 import { hidePropertyIn } from "@mendix/pluggable-widgets-tools";
 
 export function getProperties(values, defaultProperties, target) {
-    if (values.objectDetectionEnabled === false) {
-        hidePropertyIn(defaultProperties, values, "modelUrl");
-        hidePropertyIn(defaultProperties, values, "labelMapString");
-        hidePropertyIn(defaultProperties, values, "filterClassIdsString");
-        hidePropertyIn(defaultProperties, values, "scoreThreshold");
-    }
+    //if (values.objectDetectionEnabled === false) {
+    //    hidePropertyIn(defaultProperties, values, "modelUrl");
+    //    hidePropertyIn(defaultProperties, values, "labelMapString");
+    //    hidePropertyIn(defaultProperties, values, "filterClassIdsString");
+    //    hidePropertyIn(defaultProperties, values, "scoreThreshold");
+    //}
     return defaultProperties;
 }
 

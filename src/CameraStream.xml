@@ -121,31 +121,38 @@
                 </property>
             </propertyGroup>
         </propertyGroup>
-         <propertyGroup caption="Object detection">
-            <property key="objectDetectionEnabled" type="boolean" defaultValue="false">
-                <caption>Object detection enabled</caption>
-                <description />
-            </property>
-            <property key="modelUrl" type="expression" required="true">
-                <caption>Model URL</caption>
-                <description>Model URL for object detection</description>
-                <returnType type="String" />
-            </property>
-            <property key="labelMapString" type="expression" defaultValue="'{}'" required="false">
-                <caption>Label Map JSON</caption>
-                <description>Example: '{"1": "Energiemeter", "2": "Person"}'</description>
-                <returnType type="String" />
-            </property>
-            <property key="filterClassIdsString" type="expression" defaultValue="''" required="false">
-                <caption>Filter Class IDs</caption>
-                <description>Comma-separated string of class IDs to detect. If empty, all classes passing the score threshold will be shown. Example: '1,2'</description>
-                <returnType type="String" />
-            </property>
-            <property key="scoreThreshold" type="expression" defaultValue="0.5" required="false">
-                <caption>Score Threshold</caption>
-                <description>Minimum confidence score (0.0 to 1.0) for a detection to be considered valid. Default: 0.5</description>
-                <returnType type="Decimal" />
-            </property>
+        <propertyGroup caption="Object detection">
+            <propertyGroup caption="Enabled">
+                <property key="objectDetectionEnabled" type="expression" defaultValue="false">
+                    <caption>Object detection enabled</caption>
+                    <description/>
+                    <returnType type="Boolean" />
+                </property>
+            </propertyGroup>
+            <propertyGroup caption="Model">
+                <property key="modelUrl" type="expression" required="false">
+                    <caption>Model URL</caption>
+                    <description>Model URL for object detection</description>
+                    <returnType type="String" />
+                </property>
+                <property key="labelMapString" type="expression" defaultValue="'{}'" required="false">
+                    <caption>Label Map JSON</caption>
+                    <description>Example: '{"1": "Energiemeter", "2": "Person"}'</description>
+                    <returnType type="String" />
+                </property>
+            </propertyGroup>
+            <propertyGroup caption="Settings">
+                <property key="filterClassIdsString" type="expression" defaultValue="''" required="false">
+                    <caption>Filter Class IDs</caption>
+                    <description>Comma-separated string of class IDs to detect. If empty, all classes passing the score threshold will be shown. Example: '1,2'</description>
+                    <returnType type="String" />
+                </property>
+                <property key="scoreThreshold" type="expression" defaultValue="0.5" required="false">
+                    <caption>Score Threshold</caption>
+                    <description>Minimum confidence score (0.0 to 1.0) for a detection to be considered valid. Default: 0.5</description>
+                    <returnType type="Decimal" />
+                </property>
+            </propertyGroup>
         </propertyGroup>
     </properties>
 </widget>
