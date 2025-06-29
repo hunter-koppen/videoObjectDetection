@@ -57,7 +57,7 @@ export function CameraStream(props) {
             blurScore={props.blurScore}
             badLightingScore={props.badLightingScore}
             modelName={props.modelName?.value ?? "Xenova/clip-vit-base-patch32"}
-            textPrompt={props.textPrompt?.value ?? "a photo of a plant"}
+            textPrompt={props.textPrompt?.value ?? "plant"}
             showTopClassification={props.showTopClassification?.value ?? true}
             onValidationTick={handleValidationTick}
             validationInterval={props.validationInterval?.value?.toNumber() ?? 1000}

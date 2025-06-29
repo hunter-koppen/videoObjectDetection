@@ -115,6 +115,7 @@ export function Camera(props) {
     const [cameraReady, setCameraReady] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState(null);
     const objectDetectionEnabled = rawObjectDetectionEnabled === true;
 
     // --- Worker Setup ---
@@ -143,7 +144,11 @@ export function Camera(props) {
             const { type, payload, message } = event.data;
 
             switch (type) {
+                case "loading":
+                    setLoadingMessage(message);
+                    break;
                 case "ready":
+                    setLoadingMessage(null);
                     setIsDetecting(true);
                     isWorkerBusy.current = false;
                     break;
@@ -159,6 +164,7 @@ export function Camera(props) {
                     console.error("Main: Worker error:", message);
                     setIsDetecting(false);
                     isWorkerBusy.current = false;
+                    setLoadingMessage("Error: " + message); // Display error to user
                     break;
                 default:
                     console.warn("Main: Unknown message type from worker:", type);
@@ -257,9 +263,13 @@ export function Camera(props) {
                 // Send to worker if not busy
                 if (!isWorkerBusy.current) {
                     isWorkerBusy.current = true;
+                    
+                    // Convert canvas to data URL (most compatible with Transformers.js)
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+                    console.log("Main: Created dataURL, length:", dataURL.length);
                     workerRef.current.postMessage({
                         type: "detect",
-                        payload: { imageData: imageData }
+                        payload: { imageDataURL: dataURL }
                     });
                 }
             }
@@ -466,7 +476,7 @@ export function Camera(props) {
 
             {props.showTopClassification && renderTopClassification()}
 
-            {(!cameraReady || !isDetecting) && props.loadingContent && objectDetectionEnabled && (
+            {(loadingMessage || (!cameraReady && objectDetectionEnabled)) && (
                 <div
                     className="camera-loading"
                     style={{
@@ -478,28 +488,12 @@ export function Camera(props) {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        backgroundColor: "rgba(0,0,0,0.5)"
+                        backgroundColor: "rgba(0,0,0,0.5)",
+                        color: "white",
+                        textAlign: "center"
                     }}
                 >
-                    {props.loadingContent}
-                </div>
-            )}
-            {!objectDetectionEnabled && !cameraReady && props.loadingContent && (
-                <div
-                    className="camera-loading"
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        backgroundColor: "rgba(0,0,0,0.5)"
-                    }}
-                >
-                    {props.loadingContent}
+                    {loadingMessage || "Starting camera..."}
                 </div>
             )}
 
