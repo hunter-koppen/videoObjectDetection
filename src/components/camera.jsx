@@ -91,11 +91,11 @@ export function Camera(props) {
         objectDetectionEnabled: rawObjectDetectionEnabled,
         modelName,
         textPrompt,
-        negativeTextPrompt = "other object",
+        negativeTextPrompt,
         blurScore,
         badLightingScore,
         onValidationTick,
-        validationInterval = 1000
+        validationInterval
     } = props;
 
     const webcamRef = useRef(null);
@@ -134,7 +134,6 @@ export function Camera(props) {
             };
         }
 
-        // Create worker only if detection is enabled and model URL is provided
         workerRef.current = new DetectionWorker();
 
         // Initialize offscreen canvas once
@@ -178,7 +177,6 @@ export function Camera(props) {
             setIsDetecting(false);
         };
 
-        console.log("Main: Sending load command to worker.");
         workerRef.current.postMessage({
             type: "load",
             payload: {
@@ -265,9 +263,9 @@ export function Camera(props) {
                 // Send to worker if not busy
                 if (!isWorkerBusy.current) {
                     isWorkerBusy.current = true;
-                    
+
                     // Convert canvas to data URL (most compatible with Transformers.js)
-                    const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+                    const dataURL = canvas.toDataURL("image/jpeg", 0.95);
                     console.log("Main: Created dataURL, length:", dataURL.length);
                     workerRef.current.postMessage({
                         type: "detect",
