@@ -135,6 +135,11 @@
                     <description>The text prompt to use for the object detection. Example: 'plant'</description>
                     <returnType type="String" />
                 </property>
+                <property key="negativeTextPrompt" type="expression" defaultValue="'not a plant'" required="false">
+                    <caption>Negative text prompt</caption>
+                    <description>The text prompt to use for the object detection. Example: 'not a plant'. This is used to force the model to make a choice, which gives a more realistic score instead of always defaulting to 1.0.</description>
+                    <returnType type="String" />
+                </property>
             </propertyGroup>
             <propertyGroup caption="Settings">
                 <property key="validationInterval" type="expression" defaultValue="1000" required="false">

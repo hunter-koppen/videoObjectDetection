@@ -91,6 +91,7 @@ export function Camera(props) {
         objectDetectionEnabled: rawObjectDetectionEnabled,
         modelName,
         textPrompt,
+        negativeTextPrompt = "other object",
         blurScore,
         badLightingScore,
         onValidationTick,
@@ -182,7 +183,8 @@ export function Camera(props) {
             type: "load",
             payload: {
                 modelName: modelName,
-                textPrompt: textPrompt
+                textPrompt: textPrompt,
+                negativeTextPrompt: negativeTextPrompt
             }
         });
 
@@ -198,7 +200,7 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelName, textPrompt]);
+    }, [objectDetectionEnabled, modelName, textPrompt, negativeTextPrompt]);
 
     // --- Validation Timer ---
     useEffect(() => {
