@@ -129,63 +129,36 @@
                     <returnType type="Boolean" />
                 </property>
             </propertyGroup>
-            <propertyGroup caption="Model">
-                <property key="modelUrl" type="expression" required="false">
-                    <caption>Model URL</caption>
-                    <description>Model URL for object detection</description>
-                    <returnType type="String" />
-                </property>
-                <property key="labelMapString" type="expression" defaultValue="'{}'" required="false">
-                    <caption>Label Map JSON</caption>
-                    <description>Example: '{"1": "Energiemeter", "2": "Person"}'</description>
+            <propertyGroup caption="Prompt">
+                <property key="textPrompt" type="expression" defaultValue="'plant'" required="false">
+                    <caption>Text prompt</caption>
+                    <description>The text prompt to use for the object detection. Example: 'plant'</description>
                     <returnType type="String" />
                 </property>
             </propertyGroup>
             <propertyGroup caption="Settings">
-                <property key="showBoundingBoxes" type="expression" defaultValue="false" required="false">
-                    <caption>Show bounding boxes</caption>
-                    <description>Show the green bounding boxes around the detected objects on the camera stream</description>
-                    <returnType type="Boolean" />
-                </property>
-                <property key="filterClassIdsString" type="expression" defaultValue="''" required="false">
-                    <caption>Filter Class IDs</caption>
-                    <description>Comma-separated string of class IDs to detect. If empty, all classes passing the score threshold will be shown. Example: '1,2'</description>
-                    <returnType type="String" />
-                </property>
-                <property key="scoreThreshold" type="expression" defaultValue="0.5" required="false">
-                    <caption>Score Threshold</caption>
-                    <description>Minimum confidence score (0.0 to 1.0) for a detection to be considered valid. Default: 0.5</description>
-                    <returnType type="Decimal" />
-                </property>
-            </propertyGroup>
-            <propertyGroup caption="Detection Validation">
-                <property key="detectionValidationEnabled" type="expression" defaultValue="false" required="false">
-                    <caption>Detection Validation Enabled</caption>
-                    <description>Toggle boolean to true to enable the detection validation</description>
-                    <returnType type="Boolean" />
-                </property>
-                <property key="validationDuration" type="expression" defaultValue="1500" required="false">
-                    <caption>Validation Duration</caption>
-                    <description>How ofter the validation should fire in milliseconds</description>
+                <property key="validationInterval" type="expression" defaultValue="1000" required="false">
+                    <caption>Validation interval</caption>
+                    <description>The interval in milliseconds at which the validation tick is fired. Default: 1000</description>
                     <returnType type="Integer" />
                 </property>
-                <property key="detectionRate" type="attribute" required="false">
-                    <caption>Detection Rate</caption>
-                    <description>The percentage of targeted detection during the duration. 0.5 means 50% of the duration</description>
+                <property key="motionScore" type="attribute" required="false">
+                    <caption>Motion score</caption>
+                    <description>The score of the motion detection. Value is between 0 and 8</description>
                     <attributeTypes>
                         <attributeType name="Decimal"/>
                     </attributeTypes>
                 </property>
-                <property key="averageDetectionScore" type="attribute" required="false">
-                    <caption>Average Detection Score</caption>
-                    <description>The average score of the detections during the duration</description>
+                <property key="classificationScore" type="attribute" required="false">
+                    <caption>Classification score</caption>
+                    <description>The score of the classification detection. Value is between 0 and 1.</description>
                     <attributeTypes>
                         <attributeType name="Decimal"/>
                     </attributeTypes>
                 </property>
-                <property key="onDetectionValidation" type="action" required="false">
-                    <caption>On detection validation</caption>
-                    <description>Action to fire when the detection validation is triggered</description>
+                <property key="onValidationTick" type="action" required="false">
+                    <caption>On validation tick</caption>
+                    <description>Action to fire when the validation tick is fired</description>
                 </property>
             </propertyGroup>
         </propertyGroup>

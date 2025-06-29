@@ -1,38 +1,30 @@
 import webWorkerLoader from "rollup-plugin-web-worker-loader";
+import { join } from "path";
 
 export default args => {
     const { configDefaultConfig } = args;
 
-    const configurePlugins = config => {
-        if (!config.plugins) {
-            config.plugins = [];
-        }
-        config.plugins.unshift(
+    configDefaultConfig.forEach(config => {
+        // Add the web worker loader plugin
+        config.plugins.push(
             webWorkerLoader({
                 targetPlatform: "browser",
-                sourceMap: args.mode !== "production",
-                inline: true
+                sourceMap: !config.watch
             })
         );
-    };
 
-    configDefaultConfig.forEach(config => {
-        let applyLoader = false;
-        if (config.output) {
-            const outputOptions = Array.isArray(config.output) ? config.output[0] : config.output;
+        // Suppress "Use of eval is strongly discouraged" warnings from onnxruntime-web
+        config.onwarn = (warning, warn) => {
             if (
-                outputOptions &&
-                (outputOptions.format === "umd" || outputOptions.format === "esm" || outputOptions.format === "iife")
+                warning.code === "EVAL" &&
+                warning.loc &&
+                warning.loc.file &&
+                warning.loc.file.includes(join("node_modules", "onnxruntime-web"))
             ) {
-                applyLoader = true;
+                return; // Suppress the warning
             }
-        }
-        if (!applyLoader && typeof config.input === "string" && config.input.includes("CameraStream.jsx")) {
-            applyLoader = true;
-        }
-        if (applyLoader) {
-            configurePlugins(config);
-        }
+            warn(warning); // Forward other warnings
+        };
     });
 
     return configDefaultConfig;

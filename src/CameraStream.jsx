@@ -23,15 +23,15 @@ export function CameraStream(props) {
         }
     };
 
-    const handleDetectionValidation = (detectionRate, averageDetectionScore) => {
-        if (props.detectionRate) {
-            props.detectionRate.setValue(new Big(detectionRate.toFixed(2)));
+    const handleValidationTick = (motionScore, classificationScore) => {
+        if (props.motionScore) {
+            props.motionScore.setValue(new Big(motionScore.toFixed(2)));
         }
-        if (props.averageDetectionScore) {
-            props.averageDetectionScore.setValue(new Big(averageDetectionScore.toFixed(2)));
+        if (props.classificationScore) {
+            props.classificationScore.setValue(new Big(classificationScore.toFixed(2)));
         }
-        if (props.onDetectionValidation && props.onDetectionValidation.canExecute) {
-            props.onDetectionValidation.execute();
+        if (props.onValidationTick && props.onValidationTick.canExecute) {
+            props.onValidationTick.execute();
         }
     };
 
@@ -53,17 +53,14 @@ export function CameraStream(props) {
             audioEnabled={props.audioEnabled?.value ?? true}
             facingMode={props.facingMode?.value ?? "environment"}
             objectDetectionEnabled={props.objectDetectionEnabled?.value ?? false}
-            modelUrl={props.modelUrl?.value ?? null}
-            labelMapString={props.labelMapString?.value ?? "{}"}
-            filterClassIdsString={props.filterClassIdsString?.value ?? ""}
-            scoreThreshold={props.scoreThreshold?.value?.toNumber() ?? 0.5}
-            showBoundingBoxes={props.showBoundingBoxes?.value ?? false}
             torchEnabled={props.torchEnabled?.value ?? false}
             blurScore={props.blurScore}
             badLightingScore={props.badLightingScore}
-            detectionValidationEnabled={props.detectionValidationEnabled?.value ?? false}
-            validationDuration={props.validationDuration?.value ?? 1500}
-            onDetectionValidation={handleDetectionValidation}
+            modelName={props.modelName?.value ?? "Xenova/clip-vit-base-patch32"}
+            textPrompt={props.textPrompt?.value ?? "a photo of a plant"}
+            showTopClassification={props.showTopClassification?.value ?? true}
+            onValidationTick={handleValidationTick}
+            validationInterval={props.validationInterval?.value?.toNumber() ?? 1000}
         />
     );
 }

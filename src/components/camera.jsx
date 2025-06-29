@@ -64,6 +64,24 @@ const analyzeImageQuality = imageData => {
     };
 };
 
+const calculateMotionScore = (currentData, previousData, width, height) => {
+    let motion = 0;
+    // Sample pixels for performance
+    for (let y = 0; y < height; y += 10) {
+        for (let x = 0; x < width; x += 10) {
+            const index = (y * width + x) * 4;
+            const r1 = currentData[index];
+            const g1 = currentData[index + 1];
+            const b1 = currentData[index + 2];
+            const r2 = previousData[index];
+            const g2 = previousData[index + 1];
+            const b2 = previousData[index + 2];
+            motion += Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+        }
+    }
+    return motion / (width * height);
+};
+
 export function Camera(props) {
     const {
         takeScreenshot,
@@ -71,33 +89,29 @@ export function Camera(props) {
         startRecording: startRecordingProp,
         onRecordingComplete,
         objectDetectionEnabled: rawObjectDetectionEnabled,
-        modelUrl,
-        labelMapString,
-        filterClassIdsString,
+        modelName,
+        textPrompt,
         blurScore,
         badLightingScore,
-        detectionValidationEnabled,
-        validationDuration,
-        onDetectionValidation
+        onValidationTick,
+        validationInterval = 1000
     } = props;
 
     const webcamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
-    const workerRef = useRef(null); // Ref to hold the worker instance
-    const animationFrameRef = useRef(null); // Ref for the animation frame loop
-    const isWorkerBusy = useRef(false); // Ref to track if worker is processing
-    const offscreenCanvasRef = useRef(null); // For drawing video frame to get ImageData
+    const workerRef = useRef(null);
+    const animationFrameRef = useRef(null);
+    const isWorkerBusy = useRef(false);
+    const offscreenCanvasRef = useRef(null);
+    const previousFrameDataRef = useRef(null);
 
-    // Detection validation tracking
+    // Refs to hold latest values for the validation timer
+    const motionScoreRef = useRef(0);
+    const classificationScoreRef = useRef(0);
     const validationTimerRef = useRef(null);
-    const detectionHistoryRef = useRef({
-        totalFrames: 0,
-        framesWithDetections: 0,
-        detectionScores: []
-    });
 
-    const [detections, setDetections] = useState([]);
-    const [isDetecting, setIsDetecting] = useState(false); // Controlled by worker readiness and props
+    const [classifications, setClassifications] = useState([]);
+    const [isDetecting, setIsDetecting] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
@@ -105,7 +119,7 @@ export function Camera(props) {
 
     // --- Worker Setup ---
     useEffect(() => {
-        if (!objectDetectionEnabled || !modelUrl) {
+        if (!objectDetectionEnabled || !modelName) {
             // If detection is disabled or no model URL, ensure worker is terminated if it exists
             if (workerRef.current) {
                 console.log("Main: Terminating worker due to props change.");
@@ -133,21 +147,13 @@ export function Camera(props) {
                     setIsDetecting(true);
                     isWorkerBusy.current = false;
                     break;
-                case "detections":
-                    setDetections(payload);
-                    isWorkerBusy.current = false;
-
-                    // Track detection validation metrics if enabled
-                    if (detectionValidationEnabled && payload) {
-                        detectionHistoryRef.current.totalFrames++;
-                        if (payload.length > 0) {
-                            detectionHistoryRef.current.framesWithDetections++;
-                            // Add all detection scores to our tracking array
-                            payload.forEach(detection => {
-                                detectionHistoryRef.current.detectionScores.push(detection.score);
-                            });
-                        }
+                case "classifications":
+                    if (payload && payload.length > 0) {
+                        // The worker returns the classification for the single prompt.
+                        classificationScoreRef.current = payload[0].score;
                     }
+                    setClassifications(payload);
+                    isWorkerBusy.current = false;
                     break;
                 case "error":
                     console.error("Main: Worker error:", message);
@@ -165,33 +171,12 @@ export function Camera(props) {
             setIsDetecting(false);
         };
 
-        // Parse label map and filter IDs here before sending to worker
-        let labelMap = {};
-        let filterIds = [];
-        try {
-            labelMap = JSON.parse(labelMapString || "{}");
-        } catch (err) {
-            console.error("Failed to parse labelMapString:", err);
-        }
-        try {
-            filterIds = filterClassIdsString
-                ? filterClassIdsString
-                      .split(",")
-                      .map(id => parseInt(id.trim(), 10))
-                      .filter(id => !isNaN(id))
-                : [];
-        } catch (err) {
-            console.error("Failed to parse filterClassIdsString:", err);
-        }
-
         console.log("Main: Sending load command to worker.");
         workerRef.current.postMessage({
             type: "load",
             payload: {
-                modelUrl: modelUrl,
-                labelMap: labelMap,
-                filterIds: filterIds,
-                scoreThreshold: props.scoreThreshold || 0.5
+                modelName: modelName,
+                textPrompt: textPrompt
             }
         });
 
@@ -207,14 +192,29 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [
-        objectDetectionEnabled,
-        modelUrl,
-        labelMapString,
-        filterClassIdsString,
-        props.scoreThreshold,
-        detectionValidationEnabled
-    ]); // Rerun if these change
+    }, [objectDetectionEnabled, modelName, textPrompt]);
+
+    // --- Validation Timer ---
+    useEffect(() => {
+        if (!isDetecting || !onValidationTick) {
+            if (validationTimerRef.current) {
+                clearInterval(validationTimerRef.current);
+                validationTimerRef.current = null;
+            }
+            return;
+        }
+
+        validationTimerRef.current = setInterval(() => {
+            onValidationTick(motionScoreRef.current, classificationScoreRef.current);
+        }, validationInterval);
+
+        return () => {
+            if (validationTimerRef.current) {
+                clearInterval(validationTimerRef.current);
+                validationTimerRef.current = null;
+            }
+        };
+    }, [isDetecting, onValidationTick, validationInterval]);
 
     // --- Frame Capture and Sending Loop ---
     useEffect(() => {
@@ -228,39 +228,39 @@ export function Camera(props) {
             const video = webcamRef.current.video;
 
             // Check if video is ready and worker is not busy
-            if (video.readyState === 4 && video.videoWidth > 0 && video.videoHeight > 0 && !isWorkerBusy.current) {
-                // console.time("Frame Capture & Send"); // Optional timing
-
-                // Set worker as busy
-                isWorkerBusy.current = true;
-
-                // Draw video frame to the offscreen canvas
+            if (video.readyState === 4 && video.videoWidth > 0 && video.videoHeight > 0) {
                 const canvas = offscreenCanvasRef.current;
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-                const ctx = canvas.getContext("2d", { willReadFrequently: true }); // Optimize for frequent reads
+                const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-                if (ctx) {
-                    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                    // Get ImageData from the canvas
-                    const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+                if (!ctx) {
+                    animationFrameRef.current = requestAnimationFrame(captureLoop);
+                    return;
+                }
 
-                    // Send ImageData to the worker
-                    // Note: ImageData is NOT Transferable, it will be copied (structured clone algorithm)
-                    // For potential optimization, investigate OffscreenCanvas and transferControlToOffscreen()
-                    // or createImageBitmap() if the worker can handle ImageBitmap input.
+                ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+
+                // Motion detection
+                if (previousFrameDataRef.current) {
+                    const motionScore = calculateMotionScore(
+                        imageData.data,
+                        previousFrameDataRef.current,
+                        video.videoWidth,
+                        video.videoHeight
+                    );
+                    motionScoreRef.current = motionScore;
+                }
+                previousFrameDataRef.current = imageData.data;
+
+                // Send to worker if not busy
+                if (!isWorkerBusy.current) {
+                    isWorkerBusy.current = true;
                     workerRef.current.postMessage({
                         type: "detect",
-                        payload: {
-                            imageData: imageData,
-                            width: video.videoWidth,
-                            height: video.videoHeight
-                        }
+                        payload: { imageData: imageData }
                     });
-                    // console.timeEnd("Frame Capture & Send"); // Optional timing
-                } else {
-                    console.error("Main: Could not get 2D context from offscreen canvas.");
-                    isWorkerBusy.current = false; // Reset busy flag if context fails
                 }
             }
 
@@ -289,51 +289,39 @@ export function Camera(props) {
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
             }
+            previousFrameDataRef.current = null;
         };
-    }, [cameraReady, isDetecting]); // Rerun this effect if cameraReady or isDetecting changes
+    }, [cameraReady, isDetecting]);
 
     const handleUserMedia = () => {
         // Give webcam time to initialize resolution etc.
         setTimeout(() => {
             setCameraReady(true);
-        }, 1000);
+        }, 500);
     };
 
-    // renderDetections remains the same, it just consumes the 'detections' state
-    const renderDetections = () => {
-        if (!objectDetectionEnabled || !detections.length) return null;
+    // Optional: Display the top classification result
+    const renderTopClassification = () => {
+        if (!objectDetectionEnabled || !classifications.length) return null;
+
+        const topResult = classifications[0];
 
         return (
             <div
-                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+                style={{
+                    position: "absolute",
+                    bottom: "20px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    backgroundColor: "rgba(0, 0, 0, 0.6)",
+                    color: "white",
+                    padding: "8px 15px",
+                    borderRadius: "10px",
+                    fontSize: "14px",
+                    textAlign: "center"
+                }}
             >
-                {detections.map((detection, index) => (
-                    <div
-                        key={index}
-                        style={{
-                            position: "absolute",
-                            border: "2px solid #00ff00",
-                            backgroundColor: "rgba(0, 255, 0, 0.2)",
-                            left: `${detection.bbox[0]}px`,
-                            top: `${detection.bbox[1]}px`,
-                            width: `${detection.bbox[2]}px`,
-                            height: `${detection.bbox[3]}px`
-                        }}
-                    >
-                        <span
-                            style={{
-                                position: "absolute",
-                                top: "-1.5em",
-                                backgroundColor: "#00ff00",
-                                padding: "2px 6px",
-                                color: "#fff",
-                                fontSize: "12px"
-                            }}
-                        >
-                            {detection.class} ({Math.round(detection.score * 100)}%)
-                        </span>
-                    </div>
-                ))}
+                {`${topResult.label}: ${Math.round(topResult.score * 100)}%`}
             </div>
         );
     };
@@ -462,61 +450,6 @@ export function Camera(props) {
         }
     }, [props.torchEnabled]);
 
-    // --- Detection Validation Timer ---
-    useEffect(() => {
-        if (!detectionValidationEnabled || !validationDuration || !isDetecting) {
-            // Clear existing timer if validation is disabled
-            if (validationTimerRef.current) {
-                clearInterval(validationTimerRef.current);
-                validationTimerRef.current = null;
-            }
-            return () => {
-                // No cleanup needed for early return
-            };
-        }
-
-        // Reset validation tracking when starting
-        detectionHistoryRef.current = {
-            totalFrames: 0,
-            framesWithDetections: 0,
-            detectionScores: []
-        };
-
-        // Set up validation timer
-        validationTimerRef.current = setInterval(() => {
-            const history = detectionHistoryRef.current;
-
-            // Calculate detection rate (percentage of frames with detections)
-            const detectionRate = history.totalFrames > 0 ? history.framesWithDetections / history.totalFrames : 0;
-
-            // Calculate average detection score
-            const averageDetectionScore =
-                history.detectionScores.length > 0
-                    ? history.detectionScores.reduce((sum, score) => sum + score, 0) / history.detectionScores.length
-                    : 0;
-
-            // Call the validation callback
-            if (onDetectionValidation) {
-                onDetectionValidation(detectionRate, averageDetectionScore);
-            }
-
-            // Reset tracking for next validation period
-            detectionHistoryRef.current = {
-                totalFrames: 0,
-                framesWithDetections: 0,
-                detectionScores: []
-            };
-        }, validationDuration);
-
-        // Cleanup function
-        return () => {
-            if (validationTimerRef.current) {
-                clearInterval(validationTimerRef.current);
-                validationTimerRef.current = null;
-            }
-        };
-    }, [detectionValidationEnabled, validationDuration, isDetecting, onDetectionValidation]);
-
     return (
         <div
             className={"mx-camerastream " + props.classNames}
@@ -531,7 +464,7 @@ export function Camera(props) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
 
-            {props.showBoundingBoxes && renderDetections()}
+            {props.showTopClassification && renderTopClassification()}
 
             {(!cameraReady || !isDetecting) && props.loadingContent && objectDetectionEnabled && (
                 <div
