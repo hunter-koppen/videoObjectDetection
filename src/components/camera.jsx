@@ -166,7 +166,7 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelName]); // Only recreate worker when model changes
+    }, [objectDetectionEnabled, modelName]); // Only recreate worker when model changes, dont add textPrompt and negativeTextPrompt to the dependency array
 
     // --- Prompt Updates ---
     useEffect(() => {
@@ -184,7 +184,7 @@ export function Camera(props) {
                 }
             });
         }
-    }, [textPrompt, negativeTextPrompt]); // Only when prompts change
+    }, [textPrompt, negativeTextPrompt]); // Only when prompts change, dont add workerRef.current to the dependency array
 
     // --- Validation Timer ---
     useEffect(() => {
@@ -193,7 +193,7 @@ export function Camera(props) {
                 clearInterval(validationTimerRef.current);
                 validationTimerRef.current = null;
             }
-            return;
+            return () => {};
         }
 
         validationTimerRef.current = setInterval(() => {
@@ -375,11 +375,12 @@ export function Camera(props) {
         setPrevStartRecording(startRecordingProp.value);
     }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
-    const videoConstraints = useMemo(() => {
-        return {
+    const videoConstraints = useMemo(
+        () => ({
             facingMode: props.facingMode || "environment"
-        };
-    }, [props.facingMode]);
+        }),
+        [props.facingMode]
+    );
 
     useEffect(() => {
         if (!cameraReady || !webcamRef.current || !webcamRef.current.stream) {

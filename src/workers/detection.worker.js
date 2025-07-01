@@ -4,6 +4,7 @@ import { pipeline, env } from "@xenova/transformers";
 // Configure the environment to allow remote models and disable local-only mode.
 // This is crucial for environments where the default model path is not accessible.
 env.allowRemoteModels = true;
+// eslint-disable-next-line camelcase
 env.local_files_only = false;
 
 class ClassificationPipeline {
@@ -26,6 +27,7 @@ class ClassificationPipeline {
         try {
             self.postMessage({ type: "loading", message: "Loading classification model..." });
             this.classifier = await pipeline("zero-shot-image-classification", modelName, {
+                // eslint-disable-next-line camelcase
                 progress_callback: data => {
                     if (data.status === "progress") {
                         const progress = Math.round(data.progress);
@@ -82,6 +84,10 @@ self.onmessage = async event => {
 
         case "detect":
             await ClassificationPipeline.classify(payload);
+            break;
+
+        default:
+            console.warn(`Unknown message type: ${type}`);
             break;
     }
 };
