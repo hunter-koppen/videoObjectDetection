@@ -312,7 +312,7 @@ export function Camera(props) {
     };
 
     // Optional: Display all classification results
-    const renderTopClassification = () => {
+    const renderClassificationResults = () => {
         if (!objectDetectionEnabled || !classifications.length || !showClassificationResults) return null;
 
         return (
@@ -479,7 +479,7 @@ export function Camera(props) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
 
-            {props.showTopClassification && renderTopClassification()}
+            {props.showClassificationResults && renderClassificationResults()}
 
             {(loadingMessage || (!cameraReady && objectDetectionEnabled)) && (
                 <div
