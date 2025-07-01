@@ -95,7 +95,8 @@ export function Camera(props) {
         blurScore,
         badLightingScore,
         onValidationTick,
-        validationInterval
+        validationInterval,
+        showClassificationResults
     } = props;
 
     const webcamRef = useRef(null);
@@ -310,11 +311,9 @@ export function Camera(props) {
         }, 500);
     };
 
-    // Optional: Display the top classification result
+    // Optional: Display all classification results
     const renderTopClassification = () => {
-        if (!objectDetectionEnabled || !classifications.length) return null;
-
-        const topResult = classifications[0];
+        if (!objectDetectionEnabled || !classifications.length || !showClassificationResults) return null;
 
         return (
             <div
@@ -328,10 +327,16 @@ export function Camera(props) {
                     padding: "8px 15px",
                     borderRadius: "10px",
                     fontSize: "14px",
-                    textAlign: "center"
+                    textAlign: "center",
+                    maxHeight: "200px",
+                    overflowY: "auto"
                 }}
             >
-                {`${topResult.label}: ${Math.round(topResult.score * 100)}%`}
+                {classifications.map((result, index) => (
+                    <div key={index} style={{ marginBottom: index < classifications.length - 1 ? "4px" : "0" }}>
+                        {`${result.label}: ${Math.round(result.score * 100)}%`}
+                    </div>
+                ))}
             </div>
         );
     };
