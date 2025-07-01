@@ -376,41 +376,32 @@ export function Camera(props) {
     }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
     const videoConstraints = useMemo(() => {
-        const constraints = {
+        return {
             facingMode: props.facingMode || "environment"
         };
-        if (props.torchEnabled === true) {
-            constraints.advanced = [{ torch: true }];
-        }
-        return constraints;
-    }, [props.facingMode, props.torchEnabled]);
+    }, [props.facingMode]);
 
     useEffect(() => {
-        if (!webcamRef.current || !webcamRef.current.stream) {
+        if (!cameraReady || !webcamRef.current || !webcamRef.current.stream) {
             return;
         }
         const videoTrack = webcamRef.current.stream.getVideoTracks()[0];
         if (!videoTrack) {
             return;
         }
-        if (props.torchEnabled === true) {
+
+        // Check if torch capability is supported by the browser/device
+        const capabilities = videoTrack.getCapabilities();
+        if (capabilities.torch) {
             videoTrack
                 .applyConstraints({
-                    advanced: [{ torch: true }]
-                })
-                .catch(error => {
-                    console.error("Failed to apply torch setting:", error);
-                });
-        } else {
-            videoTrack
-                .applyConstraints({
-                    advanced: [{ torch: false }]
+                    advanced: [{ torch: !!props.torchEnabled }]
                 })
                 .catch(error => {
                     console.error("Failed to apply torch setting:", error);
                 });
         }
-    }, [props.torchEnabled]);
+    }, [props.torchEnabled, cameraReady]);
 
     return (
         <div
