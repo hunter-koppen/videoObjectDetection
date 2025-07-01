@@ -19,7 +19,6 @@ class ClassificationPipeline {
 
         try {
             self.postMessage({ type: "loading", message: "Loading classification model..." });
-            // Use the pipeline function directly since we imported it specifically
             this.classifier = await pipeline("zero-shot-image-classification", modelName, {
                 progress_callback: data => {
                     if (data.status === "progress") {
@@ -44,9 +43,15 @@ class ClassificationPipeline {
 
         try {
             const input = payload.imageDataURL;
-            // By adding a neutral/opposite label, we force the model to make a choice,
-            // which gives a more realistic score instead of always defaulting to 1.0.
-            const candidateLabels = [this.textPrompt, this.negativeTextPrompt];
+            
+            // Split negative text prompt by commas and trim whitespace
+            const negativeLabels = this.negativeTextPrompt
+                ? this.negativeTextPrompt.split(',').map(label => label.trim()).filter(label => label.length > 0)
+                : [];
+            
+            // Create candidate labels array with main prompt and all negative prompts
+            const candidateLabels = [this.textPrompt, ...negativeLabels];
+            
             const outputs = await this.classifier(input, candidateLabels);
 
             // We only want to return the classification for the original prompt.
