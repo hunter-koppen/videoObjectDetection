@@ -54,12 +54,8 @@ class ClassificationPipeline {
             
             const outputs = await this.classifier(input, candidateLabels);
 
-            // We only want to return the classification for the original prompt.
-            const mainClassification = outputs.find(o => o.label === this.textPrompt);
-
-            // If for some reason the prompt label isn't in the output, send an empty array
-            // to avoid errors in the main thread. The component is expecting an array.
-            const payloadToSend = mainClassification ? [mainClassification] : [];
+            // Return all classifications including main prompt and negative prompts
+            const payloadToSend = outputs || [];
 
             self.postMessage({ type: "classifications", payload: payloadToSend });
         } catch (err) {

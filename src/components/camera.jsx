@@ -155,8 +155,9 @@ export function Camera(props) {
                     break;
                 case "classifications":
                     if (payload && payload.length > 0) {
-                        // The worker returns the classification for the single prompt.
-                        classificationScoreRef.current = payload[0].score;
+                        // The worker now returns all classifications, use the main prompt score
+                        const mainClassification = payload.find(result => result.label === textPrompt);
+                        classificationScoreRef.current = mainClassification ? mainClassification.score : 0;
                     }
                     setClassifications(payload);
                     isWorkerBusy.current = false;
