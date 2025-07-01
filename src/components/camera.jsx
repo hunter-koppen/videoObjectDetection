@@ -297,7 +297,7 @@ export function Camera(props) {
             <div
                 style={{
                     position: "absolute",
-                    bottom: "20px",
+                    top: "20px",
                     left: "50%",
                     transform: "translateX(-50%)",
                     backgroundColor: "rgba(0, 0, 0, 0.6)",
