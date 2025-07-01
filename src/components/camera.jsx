@@ -49,21 +49,6 @@ const calculateLightingScore = data => {
     return totalPixels > 0 ? totalBrightness / totalPixels : 0;
 };
 
-const analyzeImageQuality = imageData => {
-    const { data, width, height } = imageData;
-
-    // Calculate blur using Laplacian variance
-    const blurScore = calculateBlurScore(data, width, height);
-
-    // Calculate lighting using brightness and contrast
-    const lightingScore = calculateLightingScore(data);
-
-    return {
-        blurScore: blurScore,
-        badLightingScore: lightingScore
-    };
-};
-
 const calculateMotionScore = (currentData, previousData, width, height) => {
     let motion = 0;
     // Sample pixels for performance
@@ -93,7 +78,6 @@ export function Camera(props) {
         textPrompt,
         negativeTextPrompt,
         blurScore,
-        badLightingScore,
         onValidationTick,
         validationInterval,
         showClassificationResults
@@ -110,6 +94,7 @@ export function Camera(props) {
     // Refs to hold latest values for the validation timer
     const motionScoreRef = useRef(0);
     const classificationScoreRef = useRef(0);
+    const lightingScoreRef = useRef(0);
     const validationTimerRef = useRef(null);
     const textPromptRef = useRef(textPrompt);
 
@@ -207,7 +192,7 @@ export function Camera(props) {
     useEffect(() => {
         // Update the ref to latest textPrompt value
         textPromptRef.current = textPrompt;
-        
+
         // Send prompt updates to existing worker without recreating it
         if (workerRef.current && objectDetectionEnabled && modelName) {
             workerRef.current.postMessage({
@@ -232,7 +217,7 @@ export function Camera(props) {
         }
 
         validationTimerRef.current = setInterval(() => {
-            onValidationTick(motionScoreRef.current, classificationScoreRef.current);
+            onValidationTick(motionScoreRef.current, classificationScoreRef.current, lightingScoreRef.current);
         }, validationInterval);
 
         return () => {
@@ -280,6 +265,10 @@ export function Camera(props) {
                     motionScoreRef.current = motionScore;
                 }
                 previousFrameDataRef.current = imageData.data;
+
+                // Lighting detection
+                const lightingScore = calculateLightingScore(imageData.data);
+                lightingScoreRef.current = lightingScore;
 
                 // Send to worker if not busy
                 if (!isWorkerBusy.current) {
@@ -398,8 +387,8 @@ export function Camera(props) {
         if (takeScreenshot && takeScreenshot.value === true && webcamRef.current) {
             const screenshot = webcamRef.current.getScreenshot();
             if (onScreenshot && screenshot) {
-                if (blurScore || badLightingScore) {
-                    // Analyze image quality
+                if (blurScore) {
+                    // Analyze image quality for blur only
                     const canvas = document.createElement("canvas");
                     const ctx = canvas.getContext("2d");
                     const img = new Image();
@@ -410,15 +399,10 @@ export function Camera(props) {
                         ctx.drawImage(img, 0, 0);
 
                         const imageData = ctx.getImageData(0, 0, img.width, img.height);
-                        const quality = analyzeImageQuality(imageData);
+                        const blurScoreValue = calculateBlurScore(imageData.data, img.width, img.height);
 
                         if (blurScore && blurScore.setValue) {
-                            const blurScoreValue = new Big(quality.blurScore.toFixed(0));
-                            blurScore.setValue(blurScoreValue);
-                        }
-                        if (badLightingScore && badLightingScore.setValue) {
-                            const badLightingScoreValue = new Big(quality.badLightingScore.toFixed(2));
-                            badLightingScore.setValue(badLightingScoreValue);
+                            blurScore.setValue(new Big(blurScoreValue.toFixed(0)));
                         }
 
                         takeScreenshot.setValue(false);
@@ -434,7 +418,7 @@ export function Camera(props) {
                 }
             }
         }
-    }, [takeScreenshot, onScreenshot, blurScore, badLightingScore]);
+    }, [takeScreenshot, onScreenshot, blurScore]);
 
     useEffect(() => {
         if (!startRecordingProp) {
