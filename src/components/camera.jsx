@@ -111,6 +111,7 @@ export function Camera(props) {
     const motionScoreRef = useRef(0);
     const classificationScoreRef = useRef(0);
     const validationTimerRef = useRef(null);
+    const textPromptRef = useRef(textPrompt);
 
     const [classifications, setClassifications] = useState([]);
     const [isDetecting, setIsDetecting] = useState(false);
@@ -156,7 +157,7 @@ export function Camera(props) {
                 case "classifications":
                     if (payload && payload.length > 0) {
                         // The worker now returns all classifications, use the main prompt score
-                        const mainClassification = payload.find(result => result.label === textPrompt);
+                        const mainClassification = payload.find(result => result.label === textPromptRef.current);
                         classificationScoreRef.current = mainClassification ? mainClassification.score : 0;
                     }
                     setClassifications(payload);
@@ -200,7 +201,25 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelName, textPrompt, negativeTextPrompt]);
+    }, [objectDetectionEnabled, modelName]); // Only recreate worker when model changes
+
+    // --- Prompt Updates ---
+    useEffect(() => {
+        // Update the ref to latest textPrompt value
+        textPromptRef.current = textPrompt;
+        
+        // Send prompt updates to existing worker without recreating it
+        if (workerRef.current && objectDetectionEnabled && modelName) {
+            workerRef.current.postMessage({
+                type: "load",
+                payload: {
+                    modelName: modelName,
+                    textPrompt: textPrompt,
+                    negativeTextPrompt: negativeTextPrompt
+                }
+            });
+        }
+    }, [textPrompt, negativeTextPrompt]); // Only when prompts change
 
     // --- Validation Timer ---
     useEffect(() => {

@@ -8,11 +8,17 @@ env.local_files_only = false;
 
 class ClassificationPipeline {
     static classifier = null;
+    static modelName = null;
     static textPrompt = null;
     static negativeTextPrompt = null;
 
     static async load({ modelName, textPrompt, negativeTextPrompt }) {
-        if (this.classifier && this.textPrompt === textPrompt && this.negativeTextPrompt === negativeTextPrompt) {
+        // Update prompts regardless of model status
+        this.textPrompt = textPrompt;
+        this.negativeTextPrompt = negativeTextPrompt;
+
+        // Only reload model if it's not loaded or if the model name changed
+        if (this.classifier && this.modelName === modelName) {
             self.postMessage({ type: "ready" });
             return;
         }
@@ -27,8 +33,7 @@ class ClassificationPipeline {
                     }
                 }
             });
-            this.textPrompt = textPrompt;
-            this.negativeTextPrompt = negativeTextPrompt;
+            this.modelName = modelName;
             self.postMessage({ type: "ready" });
         } catch (err) {
             self.postMessage({ type: "error", message: `Failed to load model: ${err.message}` });
@@ -43,15 +48,18 @@ class ClassificationPipeline {
 
         try {
             const input = payload.imageDataURL;
-            
+
             // Split negative text prompt by commas and trim whitespace
             const negativeLabels = this.negativeTextPrompt
-                ? this.negativeTextPrompt.split(',').map(label => label.trim()).filter(label => label.length > 0)
+                ? this.negativeTextPrompt
+                      .split(",")
+                      .map(label => label.trim())
+                      .filter(label => label.length > 0)
                 : [];
-            
+
             // Create candidate labels array with main prompt and all negative prompts
             const candidateLabels = [this.textPrompt, ...negativeLabels];
-            
+
             const outputs = await this.classifier(input, candidateLabels);
 
             // Return all classifications including main prompt and negative prompts
