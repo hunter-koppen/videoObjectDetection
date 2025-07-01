@@ -20,6 +20,7 @@
     display: flex;
     justify-content: center;
     z-index: 1;
+    pointer-events: unset !important;
 }
 
 .camera-align-top {

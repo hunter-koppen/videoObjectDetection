@@ -73,20 +73,6 @@
                         <attributeType name="String"/>
                     </attributeTypes>
                 </property>
-                <property key="blurScore" type="attribute" required="false">
-                    <caption>Blur score</caption>
-                    <description>Will be set when taking a screenshot. Value is roughly between 0 and 3000.</description>
-                    <attributeTypes>
-                        <attributeType name="Decimal"/>
-                    </attributeTypes>
-                </property>
-                <property key="badLightingScore" type="attribute" required="false">
-                    <caption>Bad lighting score</caption>
-                    <description>Will be set when taking a screenshot. Value is between 0 and 1.</description>
-                    <attributeTypes>
-                        <attributeType name="Decimal"/>
-                    </attributeTypes>
-                </property>
                 <property key="onScreenshotCapture" type="action" required="false">
                     <caption>On screenshot capture</caption>
                     <description></description>
@@ -147,9 +133,16 @@
                     <description>The interval in milliseconds at which the validation tick is fired. Default: 1000</description>
                     <returnType type="Integer" />
                 </property>
-                <property key="motionScore" type="attribute" required="false">
-                    <caption>Motion score</caption>
-                    <description>The score of the motion detection. Value is between 0 and 8</description>
+                <property key="sharpnessScore" type="attribute" required="false">
+                    <caption>Sharpness score</caption>
+                    <description>Will be set when taking a screenshot. Value is roughly between 0 and 100.</description>
+                    <attributeTypes>
+                        <attributeType name="Decimal"/>
+                    </attributeTypes>
+                </property>
+                <property key="lightingScore" type="attribute" required="false">
+                    <caption>Lighting score</caption>
+                    <description>Will be set when taking a screenshot. Value is between 0 and 1.</description>
                     <attributeTypes>
                         <attributeType name="Decimal"/>
                     </attributeTypes>

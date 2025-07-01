@@ -23,15 +23,15 @@ export function CameraStream(props) {
         }
     };
 
-    const handleValidationTick = (motionScore, classificationScore, lightingScore) => {
-        if (props.motionScore) {
-            props.motionScore.setValue(new Big(motionScore.toFixed(2)));
-        }
+    const handleValidationTick = (classificationScore, lightingScore, sharpnessScore) => {
         if (props.classificationScore) {
             props.classificationScore.setValue(new Big(classificationScore.toFixed(2)));
         }
-        if (props.badLightingScore) {
-            props.badLightingScore.setValue(new Big(lightingScore.toFixed(2)));
+        if (props.lightingScore) {
+            props.lightingScore.setValue(new Big(lightingScore.toFixed(2)));
+        }
+        if (props.sharpnessScore) {
+            props.sharpnessScore.setValue(new Big(sharpnessScore.toFixed(2)));
         }
         if (props.onValidationTick && props.onValidationTick.canExecute) {
             props.onValidationTick.execute();
@@ -57,7 +57,6 @@ export function CameraStream(props) {
             facingMode={props.facingMode?.value ?? "environment"}
             objectDetectionEnabled={props.objectDetectionEnabled?.value ?? false}
             torchEnabled={props.torchEnabled?.value ?? false}
-            blurScore={props.blurScore}
             modelName={props.modelName?.value ?? "Xenova/clip-vit-base-patch32"}
             textPrompt={props.textPrompt?.value ?? "plant"}
             negativeTextPrompt={props.negativeTextPrompt?.value ?? "not a plant"}

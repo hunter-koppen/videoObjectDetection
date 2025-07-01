@@ -4,7 +4,7 @@ import DetectionWorker from "web-worker:../workers/detection.worker.js";
 import Webcam from "react-webcam";
 
 // Utility functions for image quality analysis
-const calculateBlurScore = (data, width, height) => {
+const calculateSharpnessScore = (data, width, height) => {
     let variance = 0;
     let count = 0;
 
@@ -49,24 +49,6 @@ const calculateLightingScore = data => {
     return totalPixels > 0 ? totalBrightness / totalPixels : 0;
 };
 
-const calculateMotionScore = (currentData, previousData, width, height) => {
-    let motion = 0;
-    // Sample pixels for performance
-    for (let y = 0; y < height; y += 10) {
-        for (let x = 0; x < width; x += 10) {
-            const index = (y * width + x) * 4;
-            const r1 = currentData[index];
-            const g1 = currentData[index + 1];
-            const b1 = currentData[index + 2];
-            const r2 = previousData[index];
-            const g2 = previousData[index + 1];
-            const b2 = previousData[index + 2];
-            motion += Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-        }
-    }
-    return motion / (width * height);
-};
-
 export function Camera(props) {
     const {
         takeScreenshot,
@@ -77,7 +59,6 @@ export function Camera(props) {
         modelName,
         textPrompt,
         negativeTextPrompt,
-        blurScore,
         onValidationTick,
         validationInterval,
         showClassificationResults
@@ -89,12 +70,11 @@ export function Camera(props) {
     const animationFrameRef = useRef(null);
     const isWorkerBusy = useRef(false);
     const offscreenCanvasRef = useRef(null);
-    const previousFrameDataRef = useRef(null);
 
     // Refs to hold latest values for the validation timer
-    const motionScoreRef = useRef(0);
     const classificationScoreRef = useRef(0);
     const lightingScoreRef = useRef(0);
+    const sharpnessScoreRef = useRef(0);
     const validationTimerRef = useRef(null);
     const textPromptRef = useRef(textPrompt);
 
@@ -217,7 +197,7 @@ export function Camera(props) {
         }
 
         validationTimerRef.current = setInterval(() => {
-            onValidationTick(motionScoreRef.current, classificationScoreRef.current, lightingScoreRef.current);
+            onValidationTick(classificationScoreRef.current, lightingScoreRef.current, sharpnessScoreRef.current);
         }, validationInterval);
 
         return () => {
@@ -254,19 +234,9 @@ export function Camera(props) {
                 ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
                 const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
 
-                // Motion detection
-                if (previousFrameDataRef.current) {
-                    const motionScore = calculateMotionScore(
-                        imageData.data,
-                        previousFrameDataRef.current,
-                        video.videoWidth,
-                        video.videoHeight
-                    );
-                    motionScoreRef.current = motionScore;
-                }
-                previousFrameDataRef.current = imageData.data;
+                const sharpness = calculateSharpnessScore(imageData.data, video.videoWidth, video.videoHeight);
+                sharpnessScoreRef.current = sharpness;
 
-                // Lighting detection
                 const lightingScore = calculateLightingScore(imageData.data);
                 lightingScoreRef.current = lightingScore;
 
@@ -309,7 +279,6 @@ export function Camera(props) {
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
             }
-            previousFrameDataRef.current = null;
         };
     }, [cameraReady, isDetecting]);
 
@@ -387,38 +356,12 @@ export function Camera(props) {
         if (takeScreenshot && takeScreenshot.value === true && webcamRef.current) {
             const screenshot = webcamRef.current.getScreenshot();
             if (onScreenshot && screenshot) {
-                if (blurScore) {
-                    // Analyze image quality for blur only
-                    const canvas = document.createElement("canvas");
-                    const ctx = canvas.getContext("2d");
-                    const img = new Image();
-
-                    img.onload = () => {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        ctx.drawImage(img, 0, 0);
-
-                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
-                        const blurScoreValue = calculateBlurScore(imageData.data, img.width, img.height);
-
-                        if (blurScore && blurScore.setValue) {
-                            blurScore.setValue(new Big(blurScoreValue.toFixed(0)));
-                        }
-
-                        takeScreenshot.setValue(false);
-                        const base64String = screenshot.split(",")[1];
-                        onScreenshot(base64String);
-                    };
-
-                    img.src = screenshot;
-                } else {
-                    takeScreenshot.setValue(false);
-                    const base64String = screenshot.split(",")[1];
-                    onScreenshot(base64String);
-                }
+                takeScreenshot.setValue(false);
+                const base64String = screenshot.split(",")[1];
+                onScreenshot(base64String);
             }
         }
-    }, [takeScreenshot, onScreenshot, blurScore]);
+    }, [takeScreenshot, onScreenshot]);
 
     useEffect(() => {
         if (!startRecordingProp) {
