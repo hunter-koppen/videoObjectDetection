@@ -63,6 +63,7 @@ export function CameraStream(props) {
             showClassificationResults={props.showClassificationResults?.value ?? false}
             onValidationTick={handleValidationTick}
             validationInterval={props.validationInterval?.value?.toNumber() ?? 1000}
+            userGestureButtonText={props.userGestureButtonText?.value ?? "Tap to start camera"}
         />
     );
 }

@@ -52,15 +52,14 @@ const calculateLightingScore = data => {
 // iOS Chromium detection utility
 const isIOSChromium = () => {
     const userAgent = navigator.userAgent;
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(userAgent));
+
     if (!isIOS) return false;
-    
-    // Check if it's a Chromium-based browser (Chrome, Edge, etc.) but not Safari
-    const isChromium = /Chrome|CriOS|Edg|EdgA|EdgiOS/.test(userAgent);
-    const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|Edg|EdgA|EdgiOS/.test(userAgent);
-    
+
+    // Check if it's a Chromium-based browser (Chrome) but not Safari
+    const isChromium = /Chrome|CriOS/.test(userAgent);
+    const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS/.test(userAgent);
+
     return isChromium && !isSafari;
 };
 
@@ -76,7 +75,8 @@ export function Camera(props) {
         negativeTextPrompt,
         onValidationTick,
         validationInterval,
-        showClassificationResults
+        showClassificationResults,
+        userGestureButtonText
     } = props;
 
     const webcamRef = useRef(null);
@@ -116,10 +116,10 @@ export function Camera(props) {
         console.log("User gesture provided, restarting webcam...");
         setUserGestureProvided(true);
         setNeedsUserGesture(false);
-        
+
         // Force webcam to restart with autoPlay enabled
         setWebcamKey(prev => prev + 1);
-        
+
         // Give webcam time to initialize after user gesture
         setTimeout(() => {
             console.log("Setting camera ready after user gesture");
@@ -324,7 +324,12 @@ export function Camera(props) {
     }, [cameraReady, isDetecting]);
 
     const handleUserMedia = () => {
-        console.log("handleUserMedia called, needsUserGesture:", needsUserGesture, "userGestureProvided:", userGestureProvided);
+        console.log(
+            "handleUserMedia called, needsUserGesture:",
+            needsUserGesture,
+            "userGestureProvided:",
+            userGestureProvided
+        );
         // Only auto-start camera if user gesture is not required or has been provided
         if (!needsUserGesture || userGestureProvided) {
             console.log("Setting camera ready in handleUserMedia");
@@ -483,16 +488,14 @@ export function Camera(props) {
                         flexDirection: "column",
                         justifyContent: "center",
                         alignItems: "center",
-                        backgroundColor: "rgba(0,0,0,0.8)",
+                        backgroundColor: "black",
                         color: "white",
                         textAlign: "center",
                         zIndex: 1000
                     }}
                     onClick={handleUserGesture}
                 >
-                    <div style={{ fontSize: "18px", marginBottom: "20px" }}>
-                        Tap to start camera
-                    </div>
+                    <div style={{ fontSize: "18px", marginBottom: "20px" }}>{userGestureButtonText}</div>
                 </div>
             )}
 

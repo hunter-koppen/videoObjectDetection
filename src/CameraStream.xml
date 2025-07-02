@@ -164,6 +164,16 @@
                     <returnType type="Boolean" />
                 </property>
             </propertyGroup>
+            <propertyGroup caption="Translations">
+                <property key="userGestureButtonText" type="textTemplate" required="true">
+                    <caption>User gesture button text</caption>
+                    <description>The text to display on the user gesture button. Required for iOS Chromium browsers.</description>
+                    <translations>
+                        <translation lang="en_US">Tap to start camera</translation>
+                        <translation lang="nl_NL">Tik om de camera te starten</translation>
+                    </translations>
+                </property>
+            </propertyGroup>
         </propertyGroup>
     </properties>
 </widget>
