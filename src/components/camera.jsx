@@ -49,6 +49,21 @@ const calculateLightingScore = data => {
     return totalPixels > 0 ? totalBrightness / totalPixels : 0;
 };
 
+// iOS Chromium detection utility
+const isIOSChromium = () => {
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (!isIOS) return false;
+    
+    // Check if it's a Chromium-based browser (Chrome, Edge, etc.) but not Safari
+    const isChromium = /Chrome|CriOS|Edg|EdgA|EdgiOS/.test(userAgent);
+    const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|Edg|EdgA|EdgiOS/.test(userAgent);
+    
+    return isChromium && !isSafari;
+};
+
 export function Camera(props) {
     const {
         takeScreenshot,
@@ -84,7 +99,33 @@ export function Camera(props) {
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState(null);
+    const [needsUserGesture, setNeedsUserGesture] = useState(false);
+    const [userGestureProvided, setUserGestureProvided] = useState(false);
+    const [webcamKey, setWebcamKey] = useState(0);
     const objectDetectionEnabled = rawObjectDetectionEnabled === true;
+
+    // Check if we need user gesture on mount (iOS Chromium browsers only)
+    useEffect(() => {
+        if (isIOSChromium()) {
+            setNeedsUserGesture(true);
+        }
+    }, []);
+
+    // Handle user gesture to start camera
+    const handleUserGesture = useCallback(() => {
+        console.log("User gesture provided, restarting webcam...");
+        setUserGestureProvided(true);
+        setNeedsUserGesture(false);
+        
+        // Force webcam to restart with autoPlay enabled
+        setWebcamKey(prev => prev + 1);
+        
+        // Give webcam time to initialize after user gesture
+        setTimeout(() => {
+            console.log("Setting camera ready after user gesture");
+            setCameraReady(true);
+        }, 500);
+    }, []);
 
     // --- Worker Setup ---
     useEffect(() => {
@@ -283,10 +324,15 @@ export function Camera(props) {
     }, [cameraReady, isDetecting]);
 
     const handleUserMedia = () => {
-        // Give webcam time to initialize resolution etc.
-        setTimeout(() => {
-            setCameraReady(true);
-        }, 500);
+        console.log("handleUserMedia called, needsUserGesture:", needsUserGesture, "userGestureProvided:", userGestureProvided);
+        // Only auto-start camera if user gesture is not required or has been provided
+        if (!needsUserGesture || userGestureProvided) {
+            console.log("Setting camera ready in handleUserMedia");
+            // Give webcam time to initialize resolution etc.
+            setTimeout(() => {
+                setCameraReady(true);
+            }, 500);
+        }
     };
 
     // Optional: Display all classification results
@@ -410,17 +456,47 @@ export function Camera(props) {
             style={{ position: "relative", width: props.width, height: props.height }}
         >
             <Webcam
+                key={webcamKey}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 audio={props.audioEnabled}
                 videoConstraints={videoConstraints}
                 onUserMedia={handleUserMedia}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                playsInline={true}
+                muted={true}
+                autoPlay={!needsUserGesture}
             />
 
             {props.showClassificationResults && renderClassificationResults()}
 
-            {(loadingMessage || (!cameraReady && objectDetectionEnabled)) && (
+            {needsUserGesture && (
+                <div
+                    className="camera-user-gesture-overlay"
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0,0,0,0.8)",
+                        color: "white",
+                        textAlign: "center",
+                        zIndex: 1000
+                    }}
+                    onClick={handleUserGesture}
+                >
+                    <div style={{ fontSize: "18px", marginBottom: "20px" }}>
+                        Tap to start camera
+                    </div>
+                </div>
+            )}
+
+            {(loadingMessage || (!cameraReady && objectDetectionEnabled && !needsUserGesture)) && (
                 <div
                     className="camera-loading"
                     style={{
