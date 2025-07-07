@@ -66,6 +66,7 @@ const analyzeImageQuality = imageData => {
 
 export function Camera(props) {
     const {
+        videoEnabled,
         takeScreenshot,
         onScreenshot,
         startRecording: startRecordingProp,
@@ -102,6 +103,13 @@ export function Camera(props) {
     const [isRecording, setIsRecording] = useState(false);
     const [prevStartRecording, setPrevStartRecording] = useState(false);
     const objectDetectionEnabled = rawObjectDetectionEnabled === true;
+
+    // Reset camera ready state when video is disabled
+    useEffect(() => {
+        if (videoEnabled === false) {
+            setCameraReady(false);
+        }
+    }, [videoEnabled]);
 
     // --- Worker Setup ---
     useEffect(() => {
@@ -522,14 +530,16 @@ export function Camera(props) {
             className={"mx-camerastream " + props.classNames}
             style={{ position: "relative", width: props.width, height: props.height }}
         >
-            <Webcam
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                audio={props.audioEnabled}
-                videoConstraints={videoConstraints}
-                onUserMedia={handleUserMedia}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+            {videoEnabled && (
+                <Webcam
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    audio={props.audioEnabled}
+                    videoConstraints={videoConstraints}
+                    onUserMedia={handleUserMedia}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+            )}
 
             {props.showBoundingBoxes && renderDetections()}
 

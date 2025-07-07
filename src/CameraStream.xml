@@ -8,6 +8,11 @@
     <properties>
         <propertyGroup caption="General">
             <propertyGroup caption="Content">
+                <property key="videoEnabled" type="expression" defaultValue="true" required="true">
+                    <caption>Video enabled</caption>
+                    <description/>
+                    <returnType type="Boolean" />
+                </property>
                 <property key="contentTop" type="widgets" required="false">
                     <caption>Top</caption>
                     <description/>
