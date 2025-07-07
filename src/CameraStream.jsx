@@ -53,6 +53,7 @@ export function CameraStream(props) {
             startRecording={props.startRecording}
             showRecordingIndicator={props.showRecordingIndicator}
             onRecordingComplete={handleRecordingComplete}
+            videoEnabled={props.videoEnabled?.value ?? false}
             audioEnabled={props.audioEnabled?.value ?? true}
             facingMode={props.facingMode?.value ?? "environment"}
             objectDetectionEnabled={props.objectDetectionEnabled?.value ?? false}

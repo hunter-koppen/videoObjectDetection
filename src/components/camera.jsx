@@ -65,6 +65,7 @@ const isIOSChromium = () => {
 
 export function Camera(props) {
     const {
+        videoEnabled,
         takeScreenshot,
         onScreenshot,
         startRecording: startRecordingProp,
@@ -104,12 +105,21 @@ export function Camera(props) {
     const [webcamKey, setWebcamKey] = useState(0);
     const objectDetectionEnabled = rawObjectDetectionEnabled === true;
 
+    // Reset camera ready state when video is disabled
+    useEffect(() => {
+        if (videoEnabled === false) {
+            setCameraReady(false);
+        }
+    }, [videoEnabled]);
+
     // Check if we need user gesture on mount (iOS Chromium browsers only)
     useEffect(() => {
-        if (isIOSChromium()) {
+        if (videoEnabled && isIOSChromium() && !userGestureProvided) {
             setNeedsUserGesture(true);
+        } else {
+            setNeedsUserGesture(false);
         }
-    }, []);
+    }, [videoEnabled, userGestureProvided]);
 
     // Handle user gesture to start camera
     const handleUserGesture = useCallback(() => {
@@ -460,18 +470,20 @@ export function Camera(props) {
             className={"mx-camerastream " + props.classNames}
             style={{ position: "relative", width: props.width, height: props.height }}
         >
-            <Webcam
-                key={webcamKey}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                audio={props.audioEnabled}
-                videoConstraints={videoConstraints}
-                onUserMedia={handleUserMedia}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                playsInline={true}
-                muted={true}
-                autoPlay={!needsUserGesture}
-            />
+            {videoEnabled && (
+                <Webcam
+                    key={webcamKey}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    audio={props.audioEnabled}
+                    videoConstraints={videoConstraints}
+                    onUserMedia={handleUserMedia}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    playsInline={true}
+                    muted={true}
+                    autoPlay={!needsUserGesture}
+                />
+            )}
 
             {props.showClassificationResults && renderClassificationResults()}
 
@@ -499,7 +511,7 @@ export function Camera(props) {
                 </div>
             )}
 
-            {(loadingMessage || (!cameraReady && objectDetectionEnabled && !needsUserGesture)) && (
+            {(loadingMessage || (!cameraReady && objectDetectionEnabled && !needsUserGesture && videoEnabled)) && (
                 <div
                     className="camera-loading"
                     style={{
