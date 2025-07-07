@@ -440,8 +440,8 @@ export function Camera(props) {
         if (props.torchEnabled === true) {
             constraints.advanced = [{ torch: true }];
         }
-        return constraints;
-    }, [props.facingMode, props.torchEnabled]);
+        return videoEnabled ? constraints : null;
+    }, [props.facingMode, props.torchEnabled, videoEnabled]);
 
     useEffect(() => {
         if (!webcamRef.current || !webcamRef.current.stream) {
@@ -537,6 +537,7 @@ export function Camera(props) {
                     audio={props.audioEnabled}
                     videoConstraints={videoConstraints}
                     onUserMedia={handleUserMedia}
+                    onUserMediaError={() => setCameraReady(false)}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
             )}
@@ -561,7 +562,7 @@ export function Camera(props) {
                     {props.loadingContent}
                 </div>
             )}
-            {!objectDetectionEnabled && !cameraReady && props.loadingContent && (
+            {!objectDetectionEnabled && !cameraReady && props.loadingContent && !videoEnabled && (
                 <div
                     className="camera-loading"
                     style={{
