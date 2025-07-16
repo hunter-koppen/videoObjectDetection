@@ -297,7 +297,6 @@ export function Camera(props) {
 
                     // Convert canvas to data URL (most compatible with Transformers.js)
                     const dataURL = canvas.toDataURL("image/jpeg", 0.95);
-                    console.log("Main: Created dataURL, length:", dataURL.length);
                     workerRef.current.postMessage({
                         type: "detect",
                         payload: { imageDataURL: dataURL }
