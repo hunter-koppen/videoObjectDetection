@@ -85,6 +85,7 @@ export function Camera(props) {
     const workerRef = useRef(null);
     const animationFrameRef = useRef(null);
     const isWorkerBusy = useRef(false);
+    const lastSentAtRef = useRef(0);
     const offscreenCanvasRef = useRef(null);
 
     // Refs to hold latest values for the validation timer
@@ -139,7 +140,7 @@ export function Camera(props) {
 
     // --- Worker Setup ---
     useEffect(() => {
-        if (!objectDetectionEnabled || !modelName) {
+        if (!objectDetectionEnabled || !modelName || !cameraReady) {
             // If detection is disabled or no model URL, ensure worker is terminated if it exists
             if (workerRef.current) {
                 console.log("Main: Terminating worker due to props change.");
@@ -217,7 +218,7 @@ export function Camera(props) {
                 animationFrameRef.current = null;
             }
         };
-    }, [objectDetectionEnabled, modelName]); // Only recreate worker when model changes, dont add textPrompt and negativeTextPrompt to the dependency array
+    }, [objectDetectionEnabled, modelName, cameraReady]); // Delay worker/model load until camera is ready on iOS to avoid crashes
 
     // --- Prompt Updates ---
     useEffect(() => {
@@ -273,8 +274,19 @@ export function Camera(props) {
             // Check if video is ready and worker is not busy
             if (video.readyState === 4 && video.videoWidth > 0 && video.videoHeight > 0) {
                 const canvas = offscreenCanvasRef.current;
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+
+                // Downscale to reduce memory/CPU usage (particularly important on iOS Safari)
+                const uaForScale = typeof navigator !== "undefined" ? navigator.userAgent : "";
+                const isIOSForScale =
+                    /iPad|iPhone|iPod/.test(uaForScale) ||
+                    (typeof navigator !== "undefined" && navigator.maxTouchPoints > 1 && /Mac/.test(uaForScale));
+                const maxSide = isIOSForScale ? 256 : 384; // smaller on iOS, larger on others
+                const scale = Math.min(maxSide / video.videoWidth, maxSide / video.videoHeight, 1);
+                const targetWidth = Math.max(1, Math.floor(video.videoWidth * scale));
+                const targetHeight = Math.max(1, Math.floor(video.videoHeight * scale));
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
                 if (!ctx) {
@@ -282,21 +294,26 @@ export function Camera(props) {
                     return;
                 }
 
-                ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+                ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+                const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
 
-                const sharpness = calculateSharpnessScore(imageData.data, video.videoWidth, video.videoHeight);
+                const sharpness = calculateSharpnessScore(imageData.data, imageData.width, imageData.height);
                 sharpnessScoreRef.current = sharpness;
 
                 const lightingScore = calculateLightingScore(imageData.data);
                 lightingScoreRef.current = lightingScore;
 
                 // Send to worker if not busy
-                if (!isWorkerBusy.current) {
+                // Throttle how often we send frames to the worker to reduce pressure on iOS Safari
+                const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                const minIntervalMs = isIOSForScale ? 700 : 250; // throttle more on iOS
+
+                if (!isWorkerBusy.current && now - lastSentAtRef.current >= minIntervalMs) {
                     isWorkerBusy.current = true;
+                    lastSentAtRef.current = now;
 
                     // Convert canvas to data URL (most compatible with Transformers.js)
-                    const dataURL = canvas.toDataURL("image/jpeg", 0.95);
+                    const dataURL = canvas.toDataURL("image/jpeg", isIOSForScale ? 0.7 : 0.8);
                     workerRef.current.postMessage({
                         type: "detect",
                         payload: { imageDataURL: dataURL }
@@ -435,12 +452,28 @@ export function Camera(props) {
         setPrevStartRecording(startRecordingProp.value);
     }, [startRecordingProp, prevStartRecording, startRecording, stopRecording]);
 
-    const videoConstraints = useMemo(
-        () => ({
+    const videoConstraints = useMemo(() => {
+        const base = {
             facingMode: props.facingMode || "environment"
-        }),
-        [props.facingMode]
-    );
+        };
+
+        const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+        const isiOS =
+            /iPad|iPhone|iPod/.test(ua) ||
+            (typeof navigator !== "undefined" && navigator.maxTouchPoints > 1 && /Mac/.test(ua));
+
+        // On iOS Safari, aggressively cap resolution and frame rate to prevent crashes
+        if (isiOS) {
+            return {
+                ...base,
+                width: { ideal: 640, max: 640 },
+                height: { ideal: 480, max: 480 },
+                frameRate: { ideal: 15, max: 15 }
+            };
+        }
+
+        return base;
+    }, [props.facingMode]);
 
     useEffect(() => {
         if (!cameraReady || !webcamRef.current || !webcamRef.current.stream) {

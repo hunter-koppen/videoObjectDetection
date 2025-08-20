@@ -7,6 +7,33 @@ env.allowRemoteModels = true;
 // eslint-disable-next-line camelcase
 env.local_files_only = false;
 
+// Detect iOS environment inside the worker
+const isIOS = (() => {
+    try {
+        const ua = (self.navigator && self.navigator.userAgent) || "";
+        const hasTouchMac =
+            typeof self.navigator !== "undefined" && self.navigator.maxTouchPoints > 1 && /Mac/.test(ua);
+        return /iPad|iPhone|iPod/.test(ua) || hasTouchMac;
+    } catch (e) {
+        return false;
+    }
+})();
+
+// Platform-specific ONNX/WASM tuning
+if (isIOS) {
+    // iOS Safari stability: avoid multi-threaded/SIMD wasm and disable cache/FS to reduce storage churn
+    env.backends.onnx.wasm.numThreads = 1;
+    env.backends.onnx.wasm.simd = false;
+    env.useBrowserCache = false;
+    env.useFS = false;
+} else {
+    // On non-iOS, prefer performance features
+    env.backends.onnx.wasm.numThreads = Math.max(2, (self.navigator && self.navigator.hardwareConcurrency) || 2);
+    env.backends.onnx.wasm.simd = true;
+    env.useBrowserCache = true;
+    env.useFS = true;
+}
+
 class ClassificationPipeline {
     static classifier = null;
     static modelName = null;
